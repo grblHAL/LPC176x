@@ -1,15 +1,15 @@
-[submodule "grbl"]
-	path = grbl
+[submodule "src/grbl"]
+	path = src/grbl
 	url = https://github.com/grblHAL/core
-[submodule "eeprom"]
-	path = eeprom
+[submodule "src/eeprom"]
+	path = src/eeprom
 	url = https://github.com/grblHAL/Plugin_EEPROM
-[submodule "sdcard"]
-	path = sdcard
+[submodule "src/sdcard"]
+	path = src/sdcard
 	url = https://github.com/grblHAL/Plugin_SD_card
-[submodule "motors"]
-	path = motors
+[submodule "src/motors"]
+	path = src/motors
 	url = https://github.com/grblHAL/Plugins_motor
-[submodule "trinamic"]
-	path = trinamic
+[submodule "src/trinamic"]
+	path = src/trinamic
 	url = https://github.com/terjeio/Trinamic-library
