@@ -17,7 +17,7 @@ __Update 2020-11-21:__
 
 A build option for creating a _Firmware.bin_ file that can be used for programming via the Smoothieboard DFU-bootloader has been added to build configurations.  
 Select the _BL_0x4000_ configuration from the build tool dropdown to build, and programming can then be done via SD card transfer:  
-![Config](../../media/LPC176x_config.png)  
+![Config](media/LPC176x_config.png)  
 _Firmware.bin_ is found in the _BL_0x4000_ project folder after a successful build.
 
 __Update 2020-01-01:__
