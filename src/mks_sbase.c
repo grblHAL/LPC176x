@@ -51,7 +51,7 @@ static const setting_detail_t mks_settings[] = {
     { Setting_AxisStepperCurrent, Group_Axis0, "?-axis motor current", "A", Format_Decimal, "0.0#", "0", "2.2", Setting_NonCoreFn, set_axis_setting, get_axis_setting }
 };
 
-static void trinamic_settings_save (void)
+static void mks_settings_save (void)
 {
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&mks, sizeof(mks_settings_t), true);
 }
@@ -60,7 +60,7 @@ static setting_details_t details = {
     .settings = mks_settings,
     .n_settings = sizeof(mks_settings) / sizeof(setting_detail_t),
     .load = mks_settings_load,
-    .save = trinamic_settings_save,
+    .save = mks_settings_save,
     .restore = mks_settings_restore
 };
 

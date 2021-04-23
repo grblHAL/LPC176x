@@ -1149,8 +1149,8 @@ static bool driver_setup (settings_t *settings)
 #endif
 
 #if SDCARD_ENABLE
-    BITBAND_GPIO(SD_CS_PORT->DIR, SD_CS_PIN) = 1;
-    BITBAND_GPIO(SD_CS_PORT->PIN, SD_CS_PIN) = 1;
+    SD_CS_PORT->DIR |= SD_CS_BIT;
+    DIGITAL_OUT(SD_CS_PORT, SD_CS_BIT, 1);
 
     sdcard_init();
 #endif
@@ -1194,7 +1194,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "210219";
+    hal.driver_version = "210423";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1235,6 +1235,7 @@ bool driver_init (void) {
     hal.stream.read = usbGetC;
     hal.stream.write = usbWriteS;
     hal.stream.write_all = usbWriteS;
+    hal.stream.write_char = usbPutC;
     hal.stream.get_rx_buffer_available = usbRxFree;
     hal.stream.reset_read_buffer = usbRxFlush;
     hal.stream.cancel_read_buffer = usbRxCancel;
@@ -1244,6 +1245,7 @@ bool driver_init (void) {
     hal.stream.read = serialGetC;
     hal.stream.write = serialWriteS;
     hal.stream.write_all = serialWriteS;
+    hal.stream.write_char = serialPutC;
     hal.stream.get_rx_buffer_available = serialRxFree;
     hal.stream.reset_read_buffer = serialRxFlush;
     hal.stream.cancel_read_buffer = serialRxCancel;
