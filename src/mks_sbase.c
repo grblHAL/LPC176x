@@ -71,7 +71,7 @@ static setting_details_t *on_get_settings (void)
 
 static void mks_set_current (uint_fast8_t axis, float current)
 {
-    static const uint8_t wiper_registers[] = {0x09, 0x01, 0x06, 0x07};
+    static const uint8_t wiper_registers[] = {0x00, 0x01, 0x06, 0x07};
 
     //TODO: add support for B axis?
 
