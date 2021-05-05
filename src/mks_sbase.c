@@ -78,7 +78,7 @@ static void mks_set_current (uint_fast8_t axis, float current)
     uint8_t cmd[2];
 
     cmd[0] = wiper_registers[axis] << 4;
-    cmd[1] = (uint8_t)min(255.0f, roundf(current * 113.33f));
+    cmd[1] = (uint8_t)min(255.0f, roundf(current * 100.85f));
 
     i2c_write(MCP44XX_I2C_ADDR, cmd, sizeof(cmd));
 }
