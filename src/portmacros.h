@@ -49,11 +49,6 @@
 
 #define GPIO_IRQHandler EINT3_IRQHandler
 
-#define PINMODE_PULLUP   0x0
-#define PINMODE_REPEATER 0x1
-#define PINMODE_FLOATING 0x2
-#define PINMODE_PULLDOWN 0x3
-
 #define timer(p) timerN(p)
 #define timerN(p) LPC_TIMER ## p
 #define timerINT0(p) timerI0(p)
