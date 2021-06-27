@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020 Terje Io
+  Copyright (c) 2020-2021 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,3 +38,19 @@
 //#define LIMIT_MAX_ENABLE   1 // Uncomment to enable max limit input pins (when available)
 //#define EEPROM_ENABLE      1 // I2C EEPROM support. Set to 1 for 24LC16(2K), 2 (64 byte pages) or 3 (32 byte pages) for larger sizes. Requires eeprom plugin.
 //#define EEPROM_IS_FRAM     1 // Uncomment when EEPROM is enabled and chip is FRAM, this to remove write delay.
+
+// If the selected board map supports more than three motors ganging and/or auto-squaring
+// of axes can be enabled here.
+//#define X_GANGED            1
+//#define X_AUTO_SQUARE       1
+//#define Y_GANGED            1
+//#define Y_AUTO_SQUARE       1
+//#define Z_GANGED            1
+//#define Z_AUTO_SQUARE       1
+// For ganged axes the limit switch input (if available) can be configured to act as a max travel limit switch.
+// NOTE: If board map already has max limit inputs defined this configuration will be ignored.
+//#define X_GANGED_LIM_MAX    1
+//#define Y_GANGED_LIM_MAX    1
+//#define Z_GANGED_LIM_MAX    1
+
+/*EOF*/

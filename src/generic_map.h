@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020 Terje Io
+  Copyright (c) 2020-2021 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "driver.h"
+#if N_ABC_MOTORS > 0
+#error "Axis configuration is not supported!"
+#endif
 
 // Define step pulse output pins. NOTE: All step bit pins must be on the same port.
 
@@ -52,12 +54,10 @@
 
 // Define stepper driver enable/disable output pin.
 
-#define STEPPERS_DISABLE_PN     0
-#define STEPPERS_DISABLE_PORT   port(STEPPERS_DISABLE_PN)
-#define STEPPERS_DISABLE_PIN    10
-// 19 + 21
-#define STEPPERS_DISABLE_BIT    (1<<STEPPERS_DISABLE_PIN)
-#define STEPPERS_DISABLE_MASK   (STEPPERS_DISABLE_BIT)
+#define STEPPERS_ENABLE_PN     0
+#define STEPPERS_ENABLE_PORT   port(STEPPERS_ENABLE_PN)
+#define STEPPERS_ENABLE_PIN    10
+#define STEPPERS_ENABLE_BIT    (1<<STEPPERS_ENABLE_PIN)
 
 // Define homing/hard limit switch input pins
 // NOTE: All limit bit pins must be on the same port

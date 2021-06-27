@@ -29,7 +29,7 @@
 #include "grbl-lpc/pwm_driver.h"
 
 #include "grbl/limits.h"
-#include "grbl/crossbar.h"
+#include "grbl/motor_pins.h"
 
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"
@@ -53,30 +53,6 @@
 #include "eeprom/eeprom.h"
 #endif
 
-#if defined(X_LIMIT_PORT_MAX) || defined(Z_LIMIT_PORT_MAX) || defined(Z_LIMIT_PORT_MAX)
-#define HAS_MAX_LIMIT_INPUTS
-#endif
-
-#ifndef X_STEP_PN
-#define X_STEP_PN STEP_PN
-#endif
-#ifndef Y_STEP_PN
-#define Y_STEP_PN STEP_PN
-#endif
-#ifndef Z_STEP_PN
-#define Z_STEP_PN STEP_PN
-#endif
-
-#ifndef X_DIRECTION_PN
-#define X_DIRECTION_PN DIRECTION_PN
-#endif
-#ifndef Y_DIRECTION_PN
-#define Y_DIRECTION_PN DIRECTION_PN
-#endif
-#ifndef Z_DIRECTION_PN
-#define Z_DIRECTION_PN DIRECTION_PN
-#endif
-
 static bool pwmEnabled = false, IOInitDone = false;
 static uint16_t pulse_length, pulse_delay;
 // Inverts the probe pin state depending on user settings and probing cycle mode.
@@ -85,35 +61,11 @@ static probe_state_t probe = {
 };
 
 static axes_signals_t next_step_outbits;
+static pin_group_pins_t limit_inputs = {0};
 static spindle_pwm_t spindle_pwm;
 static delay_t delay = { .ms = 1, .callback = NULL }; // NOTE: initial ms set to 1 for "resetting" systick timer on startup
 
 #define DEBOUNCE_QUEUE 8 // Must be a power of 2
-
-typedef enum {
-    GPIO_Intr_None = 0,
-    GPIO_Intr_Falling,
-    GPIO_Intr_Rising,
-    GPIO_Intr_Both,
-} gpio_intr_t;
-
-typedef struct {
-    LPC_GPIO_T *port;
-    uint32_t pin;
-    uint32_t bit;
-    pin_function_t id;
-    pin_group_t group;
-    bool debounce;
-    gpio_intr_t intr_type;
-} input_signal_t;
-
-typedef struct {
-    LPC_GPIO_T *port;
-    uint32_t pin;
-    uint32_t bit;
-    pin_function_t id;
-    pin_group_t group;
-} output_signal_t;
 
 typedef struct {
     volatile uint_fast8_t head;
@@ -144,14 +96,23 @@ static input_signal_t inputpin[] = {
     { .id = Input_SafetyDoor,   .port = SAFETY_DOOR_PORT,  .pin = SAFETY_DOOR_PIN,   .group = PinGroup_Control },
   #endif
     { .id = Input_LimitX,       .port = X_LIMIT_PORT,      .pin = X_LIMIT_PIN,       .group = PinGroup_Limit },
+  #ifdef X2_LIMIT_PIN
+    { .id = Input_LimitX_2,     .port = X2_LIMIT_PORT,     .pin = X2_LIMIT_PIN,      .group = PinGroup_Limit },
+  #endif
   #ifdef X_LIMIT_PIN_MAX
     { .id = Input_LimitX_Max,   .port = X_LIMIT_PORT_MAX,  .pin = X_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
   #endif
     { .id = Input_LimitY,       .port = Y_LIMIT_PORT,      .pin = Y_LIMIT_PIN,       .group = PinGroup_Limit },
+  #ifdef Y2_LIMIT_PIN
+    { .id = Input_LimitY_2,     .port = Y2_LIMIT_PORT,     .pin = Y2_LIMIT_PIN,      .group = PinGroup_Limit },
+  #endif
   #ifdef Y_LIMIT_PIN_MAX
     { .id = Input_LimitY_Max,   .port = Y_LIMIT_PORT_MAX,  .pin = Y_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
   #endif
     { .id = Input_LimitZ,       .port = Z_LIMIT_PORT,      .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit },
+  #ifdef Z2_LIMIT_PIN
+    { .id = Input_LimitZ_2,     .port = Z2_LIMIT_PORT,     .pin = Z2_LIMIT_PIN,      .group = PinGroup_Limit },
+  #endif
   #ifdef Z_LIMIT_PIN_MAX
     { .id = Input_LimitZ_Max,   .port = Z_LIMIT_PORT_MAX,  .pin = Z_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
   #endif
@@ -174,85 +135,126 @@ static input_signal_t inputpin[] = {
     { .id = Input_LimitC_Max,   .port = C_LIMIT_PORT_MAX,  .pin = C_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
   #endif
   #if KEYPAD_ENABLE
-  , { .id = Input_KeypadStrobe, .port = KEYPAD_STROBE_PORT .pin = KEYPAD_STROBE_PIN, .group = PinGroup_Keypad }
+    { .id = Input_KeypadStrobe, .port = KEYPAD_STROBE_PORT .pin = KEYPAD_STROBE_PIN, .group = PinGroup_Keypad },
   #endif
+// Aux input pins must be consecutive in this array
+#ifdef AUXINPUT0_PIN
+    { .id = Input_Aux0,         .port = AUXINPUT0_PORT,    .pin = AUXINPUT0_PIN,     .group = PinGroup_AuxInput },
+#endif
+#ifdef AUXINPUT1_PIN
+    { .id = Input_Aux1,         .port = AUXINPUT1_PORT,    .pin = AUXINPUT1_PIN,     .group = PinGroup_AuxInput },
+#endif
+#ifdef AUXINPUT2_PIN
+    { .id = Input_Aux2,         .port = AUXINPUT2_PORT,    .pin = AUXINPUT2_PIN,     .group = PinGroup_AuxInput }
+#endif
 };
 
 static output_signal_t outputpin[] = {
-    { .id = Output_StepX,           .port = X_STEP_PORT,                .pin = X_STEP_PIN,              .group = PinGroup_StepperStep },
-    { .id = Output_StepY,           .port = Y_STEP_PORT,                .pin = Y_STEP_PIN,              .group = PinGroup_StepperStep },
-    { .id = Output_StepZ,           .port = Z_STEP_PORT,                .pin = Z_STEP_PIN,              .group = PinGroup_StepperStep },
+    { .id = Output_StepX,           .port = X_STEP_PORT,            .pin = X_STEP_PIN,              .group = PinGroup_StepperStep },
+    { .id = Output_StepY,           .port = Y_STEP_PORT,            .pin = Y_STEP_PIN,              .group = PinGroup_StepperStep },
+    { .id = Output_StepZ,           .port = Z_STEP_PORT,            .pin = Z_STEP_PIN,              .group = PinGroup_StepperStep },
 #ifdef A_AXIS
-    { .id = Output_StepA,           .port = A_STEP_PORT,                .pin = A_STEP_PIN,              .group = PinGroup_StepperStep },
+    { .id = Output_StepA,           .port = A_STEP_PORT,            .pin = A_STEP_PIN,              .group = PinGroup_StepperStep },
 #endif
 #ifdef B_AXIS
-    { .id = Output_StepB,           .port = B_STEP_PORT,                .pin = B_STEP_PIN,              .group = PinGroup_StepperStep },
+    { .id = Output_StepB,           .port = B_STEP_PORT,            .pin = B_STEP_PIN,              .group = PinGroup_StepperStep },
 #endif
 #ifdef C_AXIS
-    { .id = Output_StepC,           .port = C_STEP_PORT,                .pin = C_STEP_PIN,              .group = PinGroup_StepperStep },
+    { .id = Output_StepC,           .port = C_STEP_PORT,            .pin = C_STEP_PIN,              .group = PinGroup_StepperStep },
 #endif
-    { .id = Output_DirX,            .port = X_DIRECTION_PORT,           .pin = X_DIRECTION_PIN,         .group = PinGroup_StepperDir },
-    { .id = Output_DirY,            .port = Y_DIRECTION_PORT,           .pin = Y_DIRECTION_PIN,         .group = PinGroup_StepperDir },
-    { .id = Output_DirZ,            .port = Z_DIRECTION_PORT,           .pin = Z_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+#ifdef X2_STEP_PIN
+    { .id = Output_StepX,           .port = X2_STEP_PORT,           .pin = X2_STEP_PIN,             .group = PinGroup_StepperStep },
+#endif
+#ifdef Y2_STEP_PIN
+    { .id = Output_StepY,           .port = Y2_STEP_PORT,           .pin = Y2_STEP_PIN,             .group = PinGroup_StepperStep },
+#endif
+#ifdef Z2_STEP_PIN
+    { .id = Output_StepZ,           .port = Z2_STEP_PORT,           .pin = Z2_STEP_PIN,             .group = PinGroup_StepperStep },
+#endif
+    { .id = Output_DirX,            .port = X_DIRECTION_PORT,       .pin = X_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+    { .id = Output_DirY,            .port = Y_DIRECTION_PORT,       .pin = Y_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+    { .id = Output_DirZ,            .port = Z_DIRECTION_PORT,       .pin = Z_DIRECTION_PIN,         .group = PinGroup_StepperDir },
 #ifdef A_AXIS
-    { .id = Output_DirA,            .port = A_DIRECTION_PORT,           .pin = A_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+    { .id = Output_DirA,            .port = A_DIRECTION_PORT,       .pin = A_DIRECTION_PIN,         .group = PinGroup_StepperDir },
 #endif
 #ifdef B_AXIS
-    { .id = Output_DirB,            .port = B_DIRECTION_PORT,           .pin = B_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+    { .id = Output_DirB,            .port = B_DIRECTION_PORT,       .pin = B_DIRECTION_PIN,         .group = PinGroup_StepperDir },
 #endif
 #ifdef C_AXIS
-    { .id = Output_DirC,            .port = C_DIRECTION_PORT,           .pin = C_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+    { .id = Output_DirC,            .port = C_DIRECTION_PORT,       .pin = C_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+#endif
+#ifdef X2_DIRECTION_PIN
+    { .id = Output_DirX,            .port = X2_DIRECTION_PORT,      .pin = X2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
+#endif
+#ifdef Y2_DIRECTION_PIN
+    { .id = Output_DirY,            .port = Y2_DIRECTION_PORT,      .pin = Y2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
+#endif
+#ifdef Z2_DIRECTION_PIN
+    { .id = Output_DirZ,            .port = Z2_DIRECTION_PORT,      .pin = Z2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
 #endif
 #if !TRINAMIC_ENABLE
-#ifdef STEPPERS_DISABLE_PORT
-    { .id = Output_StepperEnable,   .port = STEPPERS_DISABLE_PORT,      .pin = STEPPERS_DISABLE_PIN,    .group = PinGroup_StepperEnable },
+#ifdef STEPPERS_ENABLE_PORT
+    { .id = Output_StepperEnable,   .port = STEPPERS_ENABLE_PORT,   .pin = STEPPERS_ENABLE_PIN,     .group = PinGroup_StepperEnable },
 #endif
-#ifdef X_DISABLE_PORT
-    { .id = Output_StepperEnableX,  .port = X_DISABLE_PORT,             .pin = X_DISABLE_PIN,           .group = PinGroup_StepperEnable },
+#ifdef X_ENABLE_PORT
+    { .id = Output_StepperEnableX,  .port = X_ENABLE_PORT,          .pin = X_ENABLE_PIN,            .group = PinGroup_StepperEnable },
 #endif
-#ifdef Y_DISABLE_PORT
-    { .id = Output_StepperEnableY,  .port = Y_DISABLE_PORT,             .pin = Y_DISABLE_PIN,           .group = PinGroup_StepperEnable },
+#ifdef Y_ENABLE_PORT
+    { .id = Output_StepperEnableY,  .port = Y_ENABLE_PORT,          .pin = Y_ENABLE_PIN,            .group = PinGroup_StepperEnable },
 #endif
-#ifdef Z_DISABLE_PORT
-    { .id = Output_StepperEnableZ,  .port = Z_DISABLE_PORT,             .pin = Z_DISABLE_PIN,           .group = PinGroup_StepperEnable },
+#ifdef Z_ENABLE_PORT
+    { .id = Output_StepperEnableZ,  .port = Z_ENABLE_PORT,          .pin = Z_ENABLE_PIN,            .group = PinGroup_StepperEnable },
 #endif
-#ifdef A_DISABLE_PORT
-    { .id = Output_StepperEnableA,  .port = A_DISABLE_PORT,             .pin = A_DISABLE_PIN,           .group = PinGroup_StepperEnable },
+#ifdef A_ENABLE_PORT
+    { .id = Output_StepperEnableA,  .port = A_ENABLE_PORT,          .pin = A_ENABLE_PIN,            .group = PinGroup_StepperEnable },
 #endif
-#ifdef B_DISABLE_PORT
-    { .id = Output_StepperEnableB,  .port = B_DISABLE_PORT,             .pin = B_DISABLE_PIN,           .group = PinGroup_StepperEnable },
+#ifdef B_ENABLE_PORT
+    { .id = Output_StepperEnableB,  .port = B_ENABLE_PORT,          .pin = B_ENABLE_PIN,            .group = PinGroup_StepperEnable },
 #endif
-#ifdef C_DISABLE_PORT
-    { .id = Output_StepperEnableC,  .port = C_DISABLE_PORT,             .pin = C_DISABLE_PIN,           .group = PinGroup_StepperEnable },
+#ifdef C_ENABLE_PORT
+    { .id = Output_StepperEnableC,  .port = C_ENABLE_PORT,          .pin = C_ENABLE_PIN,            .group = PinGroup_StepperEnable },
+#endif
+#ifdef X2_ENABLE_PIN
+    { .id = Output_StepperEnableX,  .port = X2_ENABLE_PORT,         .pin = X2_ENABLE_PIN,           .group = PinGroup_StepperEnable },
+#endif
+#ifdef Y2_ENABLE_PIN
+    { .id = Output_StepperEnableY,  .port = Y2_ENABLE_PORT,         .pin = Y2_ENABLE_PIN,           .group = PinGroup_StepperEnable },
+#endif
+#ifdef Z2_ENABLE_PIN
+    { .id = Output_StepperEnableZ,  .port = Z2_ENABLE_PORT,         .pin = Z2_ENABLE_PIN,           .group = PinGroup_StepperEnable },
 #endif
 #endif
 #if !VFD_SPINDLE
 #ifdef SPINDLE_ENABLE_PIN
-    { .id = Output_SpindleOn,       .port = SPINDLE_ENABLE_PORT,        .pin = SPINDLE_ENABLE_PIN,      .group = PinGroup_SpindleControl },
+    { .id = Output_SpindleOn,       .port = SPINDLE_ENABLE_PORT,    .pin = SPINDLE_ENABLE_PIN,      .group = PinGroup_SpindleControl },
 #endif
 #ifdef SPINDLE_DIRECTION_PIN
-    { .id = Output_SpindleDir,      .port = SPINDLE_DIRECTION_PORT,     .pin = SPINDLE_DIRECTION_PIN,   .group = PinGroup_SpindleControl },
+    { .id = Output_SpindleDir,      .port = SPINDLE_DIRECTION_PORT, .pin = SPINDLE_DIRECTION_PIN,   .group = PinGroup_SpindleControl },
 #endif
 #endif
-    { .id = Output_CoolantMist,     .port = COOLANT_FLOOD_PORT,         .pin = COOLANT_FLOOD_PIN,       .group = PinGroup_Coolant },
+    { .id = Output_CoolantMist,     .port = COOLANT_FLOOD_PORT,     .pin = COOLANT_FLOOD_PIN,       .group = PinGroup_Coolant },
 #ifdef COOLANT_MIST_PIN
-    { .id = Output_CoolantFlood,    .port = COOLANT_MIST_PORT,          .pin = COOLANT_MIST_PIN,        .group = PinGroup_Coolant },
+    { .id = Output_CoolantFlood,    .port = COOLANT_MIST_PORT,      .pin = COOLANT_MIST_PIN,        .group = PinGroup_Coolant },
 #endif
 #ifdef SD_CS_PORT
-    { .id = Output_SdCardCS,        .port = SD_CS_PORT,                 .pin = SD_CS_PIN,               .group = PinGroup_SdCard },
+    { .id = Output_SdCardCS,        .port = SD_CS_PORT,             .pin = SD_CS_PIN,               .group = PinGroup_SdCard },
 #endif
 #ifdef AUXOUTPUT0_PORT
-    { .id = Output_Aux0,            .port = AUXOUTPUT0_PORT,            .pin = AUXOUTPUT0_PIN,          .group = PinGroup_AuxOutput },
+    { .id = Output_Aux0,            .port = AUXOUTPUT0_PORT,        .pin = AUXOUTPUT0_PIN,          .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT1_PORT
-    { .id = Output_Aux1,            .port = AUXOUTPUT1_PORT,            .pin = AUXOUTPUT1_PIN,          .group = PinGroup_AuxOutput },
+    { .id = Output_Aux1,            .port = AUXOUTPUT1_PORT,        .pin = AUXOUTPUT1_PIN,          .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT2_PORT
-    { .id = Output_Aux2,            .port = AUXOUTPUT2_PORT,            .pin = AUXOUTPUT2_PIN,          .group = PinGroup_AuxOutput }
+    { .id = Output_Aux2,            .port = AUXOUTPUT2_PORT,        .pin = AUXOUTPUT2_PIN,          .group = PinGroup_AuxOutput }
 #endif
 };
 
 #include "grbl/stepdir_map.h"
+
+#ifdef SQUARING_ENABLED
+static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
+#endif
 
 static void spindle_set_speed (uint_fast16_t pwm_value);
 
@@ -275,22 +277,31 @@ static void driver_delay (uint32_t ms, void (*callback)(void))
 static void stepperEnable (axes_signals_t enable)
 {
     enable.mask ^= settings.steppers.enable_invert.mask;
-#if DISABLE_OUTMODE == GPIO_BITBAND
-    DIGITAL_OUT(X_DISABLE_PORT, X_DISABLE_BIT, enable.x);
-    DIGITAL_OUT(Y_DISABLE_PORT, Y_DISABLE_BIT, enable.y);
-    DIGITAL_OUT(Z_DISABLE_PORT, Z_DISABLE_BIT, enable.z);
+#ifdef STEPPERS_ENABLE_PORT
+    DIGITAL_OUT(STEPPERS_ENABLE_PORT, STEPPERS_ENABLE_BIT, enable.x);
+#else
+    DIGITAL_OUT(X_ENABLE_PORT, X_ENABLE_BIT, enable.x);
+  #ifdef X2_ENABLE_PIN
+    DIGITAL_OUT(X2_ENABLE_PORT, X2_ENABLE_PIN, enable.x);
+  #endif
+    DIGITAL_OUT(Y_ENABLE_PORT, Y_ENABLE_BIT, enable.y);
+  #ifdef Y2_ENABLE_PIN
+    DIGITAL_OUT(Y2_ENABLE_PORT, Y2_ENABLE_PIN, enable.y);
+  #endif
+    DIGITAL_OUT(Z_ENABLE_PORT, Z_ENABLE_BIT, enable.z);
+  #ifdef Z2_ENABLE_PIN
+    DIGITAL_OUT(Z2_ENABLE_PORT, Z2_ENABLE_PIN, enable.z);
+  #endif
   #ifdef A_AXIS
-    DIGITAL_OUT(A_DISABLE_PORT, A_DISABLE_BIT, enable.a);
+    DIGITAL_OUT(A_ENABLE_PORT, A_ENABLE_BIT, enable.a);
   #endif
   #ifdef B_AXIS
-    DIGITAL_OUT(B_DISABLE_PORT, B_DISABLE_BIT, enable.z);
+    DIGITAL_OUT(B_ENABLE_PORT, B_ENABLE_BIT, enable.b);
   #endif
-#elif defined(DISABLE_MASK)
-    DISABLE_PORT->PIN = (DISABLE_PORT->PIN & ~DISABLE_MASK) | enable.mask;
-#else
-    DIGITAL_OUT(STEPPERS_DISABLE_PORT, STEPPERS_DISABLE_BIT, enable.x);
+  #ifdef C_AXIS
+    DIGITAL_OUT(C_ENABLE_PORT, C_ENABLE_BIT, enable.c);
+  #endif
 #endif
-
 }
 
 // Starts stepper driver ISR timer and forces a stepper driver interrupt callback
@@ -316,29 +327,133 @@ static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 
 // Set stepper pulse output pins
 // NOTE: step_outbits are: bit0 -> X, bit1 -> Y, bit2 -> Z...
-// Mapping to registers can be done by
-// 1. bitbanding. Pros: can assign pins to different ports, no RMW needed. Cons: overhead, pin changes not synchronous
-// 2. bit shift. Pros: fast, Cons: bits must be consecutive
-// 3. lookup table. Pros: signal inversions done at setup, Cons: slower than bit shift?
+
+#ifdef SQUARING_ENABLED
+
+inline static __attribute__((always_inline)) void stepperSetStepOutputs (axes_signals_t step_outbits_1)
+{
+    axes_signals_t step_outbits_2;
+    step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
+
+#if STEP_OUTMODE == GPIO_BITBAND
+    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
+
+    DIGITAL_OUT(X_STEP_PORT, X_STEP_BIT, step_outbits_1.x);
+    DIGITAL_OUT(Y_STEP_PORT, Y_STEP_BIT, step_outbits_1.y);
+    DIGITAL_OUT(Z_STEP_PORT, Z_STEP_BIT, step_outbits_1.z);
+  #ifdef A_AXIS
+    DIGITAL_OUT(A_STEP_PORT, A_STEP_BIT, step_outbits_1.a);
+  #endif
+  #ifdef B_AXIS
+    DIGITAL_OUT(B_STEP_PORT, B_STEP_BIT, step_outbits_1.b);
+  #endif
+  #ifdef C_AXIS
+    DIGITAL_OUT(C_STEP_PORT, C_STEP_BIT, step_outbits_1.c);
+  #endif
+#elif STEP_OUTMODE == GPIO_MAP
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | step_outmap[step_outbits_1.value & motors_1.mask];
+#else
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | (((step_outbits_1.value & motors_1.mask) << STEP_OUTMODE) ^ settings.steppers.step_invert.value);
+#endif
+
+#ifdef X2_STEP_PIN
+    DIGITAL_OUT(X2_STEP_PORT, X2_STEP_BIT, step_outbits_2.x);
+#endif
+#ifdef Y2_STEP_PIN
+    DIGITAL_OUT(Y2_STEP_PORT, Y2_STEP_BIT, step_outbits_2.y);
+#endif
+#ifdef Z2_STEP_PIN
+    DIGITAL_OUT(Z2_STEP_PORT, Z2_STEP_BIT, step_outbits_2.z);
+#endif
+}
+
+static axes_signals_t getAutoSquaredAxes (void)
+{
+    axes_signals_t ganged = {0};
+
+    #if X_AUTO_SQUARE
+        ganged.x = On;
+    #endif
+
+    #if Y_AUTO_SQUARE
+        ganged.y = On;
+    #endif
+
+    #if Z_AUTO_SQUARE
+        ganged.z = On;
+    #endif
+
+    return ganged;
+}
+
+// Enable/disable motors for auto squaring of ganged axes
+static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
+{
+    motors_1.mask = (mode == SquaringMode_A || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
+    motors_2.mask = (mode == SquaringMode_B || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
+}
+
+#else
+
 inline static __attribute__((always_inline)) void stepperSetStepOutputs (axes_signals_t step_outbits)
 {
 #if STEP_OUTMODE == GPIO_BITBAND
     step_outbits.value ^= settings.steppers.step_invert.value;
     DIGITAL_OUT(X_STEP_PORT, X_STEP_BIT, step_outbits.x);
+  #ifdef X2_STEP_PIN
+    DIGITAL_OUT(X2_STEP_PORT, X2_STEP_BIT, step_outbits.x);
+  #endif
     DIGITAL_OUT(Y_STEP_PORT, Y_STEP_BIT, step_outbits.y);
+  #ifdef Y2_STEP_PIN
+    DIGITAL_OUT(Y2_STEP_PORT, Y2_STEP_BIT, step_outbits.y);
+  #endif
     DIGITAL_OUT(Z_STEP_PORT, Z_STEP_BIT, step_outbits.z);
+  #ifdef Z2_STEP_PIN
+    DIGITAL_OUT(Z2_STEP_PORT, Z2_STEP_BIT, step_outbits.z);
+  #endif
   #ifdef A_AXIS
     DIGITAL_OUT(A_STEP_PORT, A_STEP_BIT, step_outbits.a);
   #endif
   #ifdef B_AXIS
     DIGITAL_OUT(B_STEP_PORT, B_STEP_BIT, step_outbits.b);
   #endif
+  #ifdef C_AXIS
+    DIGITAL_OUT(C_STEP_PORT, C_STEP_BIT, step_outbits_1.c);
+  #endif
 #elif STEP_OUTMODE == GPIO_MAP
     STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | step_outmap[step_outbits.value];
+ #if N_GANGED
+  #ifdef X2_STEP_PIN
+    BITBAND_PERI(X2_STEP_PORT->ODR, X2_STEP_BIT) = step_outbits.x ^ settings.steppers.step_invert.x;
+  #endif
+  #ifdef Y2_STEP_PIN
+    BITBAND_PERI(Y2_STEP_PORT->ODR, Y2_STEP_BIT) = step_outbits.y ^ settings.steppers.step_invert.y;
+  #endif
+  #ifdef Z2_STEP_PIN
+    BITBAND_PERI(Z2_STEP_PORT->ODR, Z2_STEP_BIT) = step_outbits.z ^ settings.steppers.step_invert.z;
+  #endif
+ #endif
 #else
+ #if N_GANGED
+    step_outbits.mask ^= settings.steppers.step_invert.mask;
+    STEP_PORT->ODR = (STEP_PORT->ODR & ~STEP_MASK) | (step_outbits.mask << STEP_OUTMODE);
+  #ifdef X2_STEP_PIN
+    BITBAND_PERI(X2_STEP_PORT->ODR, X2_STEP_BIT) = step_outbits.x;
+  #endif
+  #ifdef Y2_STEP_PIN
+    BITBAND_PERI(Y2_STEP_PORT->ODR, Y2_STEP_BIT) = step_outbits.y;
+  #endif
+  #ifdef Z2_STEP_PIN
+    BITBAND_PERI(Z2_STEP_PORT->ODR, Z2_STEP_BIT) = step_outbits.z;
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | ((step_outbits.value << STEP_OUTMODE));
+  #endif
+ #else
     STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | ((step_outbits.value << STEP_OUTMODE) ^ settings.steppers.step_invert.value);
+ #endif
 #endif
 }
+
+#endif
 
 // Set stepper direction output pins
 // NOTE: see note for stepperSetStepOutputs()
@@ -355,10 +470,22 @@ inline static __attribute__((always_inline)) void stepperSetDirOutputs (axes_sig
   #ifdef B_AXIS
     DIGITAL_OUT(B_DIRECTION_PORT, B_DIRECTION_BIT, dir_outbits.b);
   #endif
+  #ifdef C_AXIS
+    DIGITAL_OUT(C_DIRECTION_PORT, C_DIRECTION_BIT, dir_outbits.c);
+  #endif
 #elif DIRECTION_OUTMODE == GPIO_MAP
     DIRECTION_PORT->PIN = (DIRECTION_PORT->PIN & ~DIRECTION_MASK) | dir_outmap[dir_outbits.value];
 #else
     DIRECTION_PORT->PIN = (DIRECTION_PORT->PIN & ~DIRECTION_MASK) | ((dir_outbits.value << DIRECTION_OUTMODE) ^ settings.steppers.dir_invert.value);
+#endif
+#ifdef X2_DIRECTION_PIN
+  DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_BIT, dir_outbits.x);
+#endif
+#ifdef Y2_DIRECTION_PIN
+  DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_BIT, dir_outbits.y);
+#endif
+#ifdef Z2_DIRECTION_PIN
+  DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_BIT, dir_outbits.z);
 #endif
 }
 
@@ -401,19 +528,18 @@ static void stepperPulseStartDelayed (stepper_t *stepper)
 // Enable/disable limit pins interrupt
 static void limitsEnable (bool on, bool homing)
 {
-    on = on && settings.limits.flags.hard_enabled;
+#ifndef LIMITS_POLL_PORT
+    uint32_t i = limit_inputs.n_pins;
 
-#ifdef X_LIMIT_INTENR
-    BITBAND_PERI(X_LIMIT_INTCLR, X_LIMIT_PIN) = 0;
-    BITBAND_PERI(X_LIMIT_INTENR, X_LIMIT_PIN) = On;
-#endif
-#ifdef Y_LIMIT_INTENR
-    BITBAND_PERI(Y_LIMIT_INTCLR, Y_LIMIT_PIN) = 0;
-    BITBAND_PERI(Y_LIMIT_INTENR, Y_LIMIT_PIN) = On;
-#endif
-#ifdef Z_LIMIT_INTENR
-    BITBAND_PERI(Z_LIMIT_INTCLR, Z_LIMIT_PIN) = 0;
-    BITBAND_PERI(Z_LIMIT_INTENR, Z_LIMIT_PIN) = On;
+    on &= settings.limits.flags.hard_enabled;
+
+    do {
+        i--;
+        if(on)
+            gpio_int_enable(&limit_inputs.pins.inputs[i], limit_inputs.pins.inputs[i].irq_mode);  // Enable interrupt.
+        else
+            gpio_int_enable(&limit_inputs.pins.inputs[i], IRQ_Mode_None); // Disable interrupt.
+    } while(i);
 #endif
 }
 
@@ -422,6 +548,12 @@ static void limitsEnable (bool on, bool homing)
 inline static limit_signals_t limitsGetState()
 {
     limit_signals_t signals = {0};
+#ifdef DUAL_LIMIT_SWITCHES
+    signals.min2.mask = settings.limits.invert.mask;
+#endif
+#ifdef MAX_LIMIT_SWITCHES
+    signals.max.mask = settings.limits.invert.mask;
+#endif
 
 #if LIMIT_INMODE == LIMIT_SHIFT
     signals.value = (uint32_t)(LIMIT_PORT->PIN & LIMIT_MASK) >> LIMIT_SHIFT;
@@ -436,31 +568,35 @@ inline static limit_signals_t limitsGetState()
     signals.min.z = (bits & Z_LIMIT_BIT) != 0;
 #endif
 
-    if (settings.limits.invert.mask)
-        signals.min.value ^= settings.limits.invert.mask;
+#ifdef X2_LIMIT_PIN
+    signals.min2.x = DIGITAL_IN(X2_LIMIT_PORT, X2_LIMIT_BIT);
+#endif
+#ifdef Y2_LIMIT_PIN
+    signals.min2.y = DIGITAL_IN(Y2_LIMIT_PORT, Y2_LIMIT_BIT);
+#endif
+#ifdef Z2_LIMIT_PIN
+    signals.min2.z = DIGITAL_IN(Z2_LIMIT_PORT, Z2_LIMIT_BIT);
+#endif
 
-#ifdef HAS_MAX_LIMIT_INPUTS
-
-    signals.max.value = settings.limits.invert.mask;
-
-#ifdef X_LIMIT_PORT_MAX
+#ifdef X_LIMIT_PIN_MAX
     signals.max.x = DIGITAL_IN(X_LIMIT_PORT_MAX, X_LIMIT_BIT_MAX);
-#else
-    signals.max.x = (bits & X_LIMIT_BIT_MAX) != 0;
 #endif
-#ifdef Y_LIMIT_PORT_MAX
+#ifdef Y_LIMIT_PIN_MAX
     signals.max.y = DIGITAL_IN(Y_LIMIT_PORT_MAX, Y_LIMIT_BIT_MAX);
-#else
-    signals.max.y = (bits & Y_LIMIT_BIT_MAX) != 0;
 #endif
-#ifdef Z_LIMIT_PORT_MAX
+#ifdef Z_LIMIT_PIN_MAX
     signals.max.z = DIGITAL_IN(Z_LIMIT_PORT_MAX, Z_LIMIT_BIT_MAX);
-#else
-    signals.max.z = (bits & Z_LIMIT_BIT_MAX) != 0;
 #endif
-    if (settings.limits.invert.mask)
+
+    if (settings.limits.invert.mask) {
+        signals.min.value ^= settings.limits.invert.mask;
+#ifdef DUAL_LIMIT_SWITCHES
+        signals.min2.mask ^= settings.limits.invert.mask;
+#endif
+#ifdef MAX_LIMIT_SWITCHES
         signals.max.value ^= settings.limits.invert.mask;
 #endif
+    }
 
     return signals;
 }
@@ -680,51 +816,53 @@ inline static uint8_t gpio_to_pn (LPC_GPIO_T *port)
     return ((uint32_t)port - LPC_GPIO0_BASE) / sizeof(LPC_GPIO_T);
 }
 
-static void gpio0_int_enable (uint32_t bit, gpio_intr_t intr_type)
+void gpio_int_enable (const input_signal_t *input, pin_irq_mode_t irq_mode)
 {
-    LPC_GPIOINT->IO0.CLR = bit;
+    if(input->port == LPC_GPIO0) {
 
-    switch(intr_type) {
-        case GPIO_Intr_Falling:
-            LPC_GPIOINT->IO0.ENR &= ~bit;
-            LPC_GPIOINT->IO0.ENF |= bit;
-            break;
-        case GPIO_Intr_Rising:
-            LPC_GPIOINT->IO0.ENR |= bit;
-            LPC_GPIOINT->IO0.ENF &= ~bit;
-            break;
-        case GPIO_Intr_Both:
-            LPC_GPIOINT->IO0.ENR |= bit;
-            LPC_GPIOINT->IO0.ENF |= bit;
-            break;
-        default:
-            LPC_GPIOINT->IO0.ENR &= ~bit;
-            LPC_GPIOINT->IO0.ENF &= ~bit;
-            break;
-    }
-}
+        LPC_GPIOINT->IO0.CLR = input->bit;
 
-static void gpio2_int_enable (uint32_t bit, gpio_intr_t intr_type)
-{
-    LPC_GPIOINT->IO2.CLR = bit;
+        switch(irq_mode) {
+            case IRQ_Mode_Falling:
+                LPC_GPIOINT->IO0.ENR &= ~input->bit;
+                LPC_GPIOINT->IO0.ENF |= input->bit;
+                break;
+            case IRQ_Mode_Rising:
+                LPC_GPIOINT->IO0.ENR |= input->bit;
+                LPC_GPIOINT->IO0.ENF &= ~input->bit;
+                break;
+            case IRQ_Mode_Change:
+                LPC_GPIOINT->IO0.ENR |= input->bit;
+                LPC_GPIOINT->IO0.ENF |= input->bit;
+                break;
+            default:
+                LPC_GPIOINT->IO0.ENR &= ~input->bit;
+                LPC_GPIOINT->IO0.ENF &= ~input->bit;
+                break;
+        }
 
-    switch(intr_type) {
-        case GPIO_Intr_Falling:
-            LPC_GPIOINT->IO2.ENR &= ~bit;
-            LPC_GPIOINT->IO2.ENF |= bit;
-            break;
-        case GPIO_Intr_Rising:
-            LPC_GPIOINT->IO2.ENR |= bit;
-            LPC_GPIOINT->IO2.ENF &= ~bit;
-            break;
-        case GPIO_Intr_Both:
-            LPC_GPIOINT->IO2.ENR |= bit;
-            LPC_GPIOINT->IO2.ENF |= bit;
-            break;
-        default:
-            LPC_GPIOINT->IO2.ENR &= ~bit;
-            LPC_GPIOINT->IO2.ENF &= ~bit;
-            break;
+    } else {
+
+        LPC_GPIOINT->IO2.CLR = input->bit;
+
+        switch(irq_mode) {
+            case IRQ_Mode_Falling:
+                LPC_GPIOINT->IO2.ENR &= ~input->bit;
+                LPC_GPIOINT->IO2.ENF |= input->bit;
+                break;
+            case IRQ_Mode_Rising:
+                LPC_GPIOINT->IO2.ENR |= input->bit;
+                LPC_GPIOINT->IO2.ENF &= ~input->bit;
+                break;
+            case IRQ_Mode_Change:
+                LPC_GPIOINT->IO2.ENR |= input->bit;
+                LPC_GPIOINT->IO2.ENF |= input->bit;
+                break;
+            default:
+                LPC_GPIOINT->IO2.ENR &= ~input->bit;
+                LPC_GPIOINT->IO2.ENF &= ~input->bit;
+                break;
+        }
     }
 }
 
@@ -745,6 +883,10 @@ void settings_changed (settings_t *settings)
     if(IOInitDone) {
 
         stepperEnable(settings->steppers.deenergize);
+
+#ifdef SQUARING_ENABLED
+        hal.stepper.disable_motors((axes_signals_t){0}, SquaringMode_Both);
+#endif
 
         if(hal.driver_cap.variable_spindle) {
             pwm_init(&SPINDLE_PWM_CHANNEL, SPINDLE_PWM_USE_PRIMARY_PIN, SPINDLE_PWM_USE_SECONDARY_PIN, spindle_pwm.period, 0);
@@ -785,7 +927,7 @@ void settings_changed (settings_t *settings)
         axes_signals_t limit_fei;
         limit_fei.mask = settings->limits.disable_pullup.mask ^ settings->limits.invert.mask;
 
-        input_signal_t *pin;
+        input_signal_t *input;
         uint32_t i = sizeof(inputpin) / sizeof(input_signal_t), a = 0, b = 0, c = 0;
 
         limits_invert = 0;
@@ -795,127 +937,133 @@ void settings_changed (settings_t *settings)
             LPC_GPIOINT->IO0.CLR = 0xFFFF;
             LPC_GPIOINT->IO2.CLR = 0xFFFF;
 
-            pin = &inputpin[--i];
+            input = &inputpin[--i];
 
-            if(pin->port != NULL) {
+            if(input->port != NULL) {
 
-                pin->bit = 1U << pin->pin;
+                input->bit = 1U << input->pin;
 
-                switch(pin->id) {
+                switch(input->id) {
 
                     case Input_Reset:
                         pullup = !settings->control_disable_pullup.reset;
-                        pin->intr_type = control_fei.reset ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = control_fei.reset ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_FeedHold:
                         pullup = !settings->control_disable_pullup.feed_hold;
-                        pin->intr_type = control_fei.feed_hold ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = control_fei.feed_hold ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_CycleStart:
                         pullup = !settings->control_disable_pullup.cycle_start;
-                        pin->intr_type = control_fei.cycle_start ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = control_fei.cycle_start ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_SafetyDoor:
                         pullup = !settings->control_disable_pullup.safety_door_ajar;
-                        pin->intr_type = control_fei.safety_door_ajar ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = control_fei.safety_door_ajar ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_Probe:
                         pullup = hal.driver_cap.probe_pull_up;
-                        pin->intr_type = GPIO_Intr_None;
+                        input->irq_mode = IRQ_Mode_None;
                         break;
 
                     case Input_LimitX:
                     case Input_LimitX_2:
                     case Input_LimitX_Max:
                         if(settings->limits.invert.x)
-                            limits_invert |= pin->bit;
+                            limits_invert |= input->bit;
                         pullup = !settings->limits.disable_pullup.x;
-                        pin->intr_type = limit_fei.x ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = limit_fei.x ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_LimitY:
                     case Input_LimitY_2:
                     case Input_LimitY_Max:
                         if(settings->limits.invert.y)
-                            limits_invert |= pin->bit;
+                            limits_invert |= input->bit;
                         pullup = !settings->limits.disable_pullup.y;
-                        pin->intr_type = limit_fei.y ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = limit_fei.y ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_LimitZ:
                     case Input_LimitZ_2:
                     case Input_LimitZ_Max:
                         if(settings->limits.invert.z)
-                            limits_invert |= pin->bit;
+                            limits_invert |= input->bit;
                         pullup = !settings->limits.disable_pullup.z;
-                        pin->intr_type = limit_fei.z ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = limit_fei.z ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_LimitA:
                     case Input_LimitA_Max:
                         if(settings->limits.invert.a)
-                            limits_invert |= pin->bit;
+                            limits_invert |= input->bit;
                         pullup = !settings->limits.disable_pullup.a;
-                        pin->intr_type = limit_fei.a ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = limit_fei.a ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_LimitB:
                     case Input_LimitB_Max:
                         if(settings->limits.invert.b)
-                            limits_invert |= pin->bit;
+                            limits_invert |= input->bit;
                         pullup = !settings->limits.disable_pullup.b;
-                        pin->intr_type = limit_fei.b ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = limit_fei.b ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_LimitC:
                     case Input_LimitC_Max:
                         if(settings->limits.invert.c)
-                            limits_invert |= pin->bit;
+                            limits_invert |= input->bit;
                         pullup = !settings->limits.disable_pullup.c;
-                        pin->intr_type = limit_fei.c ? GPIO_Intr_Falling : GPIO_Intr_Rising;
+                        input->irq_mode = limit_fei.c ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
                     case Input_KeypadStrobe:
                         pullup = true;
-                        pin->intr_type = GPIO_Intr_Both; // -> any edge?
+                        input->irq_mode = IRQ_Mode_Change; // -> any edge?
                         break;
 
                     default:
                         pullup = false;
-                        pin->intr_type = GPIO_Intr_None;
+                        input->irq_mode = IRQ_Mode_None;
                         break;
                 }
 
-                pin->port->DIR &= ~pin->bit;
-                Chip_IOCON_PinMuxSet((LPC_IOCON_T *)LPC_IOCON_BASE, gpio_to_pn(pin->port), pin->pin, pullup ? IOCON_MODE_PULLUP : IOCON_MODE_PULLDOWN);
+                if(input->group == PinGroup_AuxInput) {
+                    pullup = true;
+                    input->cap.pull_mode = (PullMode_Up|PullMode_Down);
+                    input->cap.irq_mode = input->port == LPC_GPIO0 || input->port == LPC_GPIO2 ? (IRQ_Mode_Rising|IRQ_Mode_Falling) : IRQ_Mode_None;
+                }
+
+                input->port->DIR &= ~input->bit;
+                Chip_IOCON_PinMuxSet((LPC_IOCON_T *)LPC_IOCON_BASE, gpio_to_pn(input->port), input->pin, pullup ? IOCON_MODE_PULLUP : IOCON_MODE_PULLDOWN);
 
                 // GPIO1, GPIO3 and GPIO4 are not interrupt capable ports
-                if(pin->port == LPC_GPIO3 || pin->port == LPC_GPIO4) {
+                if(input->port == LPC_GPIO3 || input->port == LPC_GPIO4) {
 
-                    if(pin->intr_type != GPIO_Intr_None) {
+                    if(input->irq_mode != IRQ_Mode_None) {
                         hal.stream.write("[MSG:Bad bin configuration]" ASCII_EOL);
                         while(true);
                     }
 
-                    if(pin->group == PinGroup_Limit)
-                        pin->intr_type = GPIO_Intr_None;
+                    if(input->group == PinGroup_Limit)
+                        input->irq_mode = IRQ_Mode_None;
                 }
 
-                if(pin->intr_type != GPIO_Intr_None) {
+                if(input->irq_mode != IRQ_Mode_None || input->group == PinGroup_AuxInput) {
 
-                    pin->debounce = hal.driver_cap.software_debounce && !(pin->group == PinGroup_Probe || pin->group == PinGroup_Keypad);
+                    input->debounce = hal.driver_cap.software_debounce && !(input->group == PinGroup_Probe || input->group == PinGroup_Keypad || input->group == PinGroup_AuxInput);
 
-                    if(pin->port == LPC_GPIO0) {
-                        gpio0_int_enable(pin->bit, pin->intr_type);
+                    if(input->port == LPC_GPIO0) {
+                        gpio_int_enable(input, input->irq_mode);
                         memcpy(&gpio0_signals[a++], &inputpin[i], sizeof(input_signal_t));
-                    } else if(pin->port == LPC_GPIO1) {
+                    } else if(input->port == LPC_GPIO1) { // Limit pins are polled
                         memcpy(&gpio1_signals[b++], &inputpin[i], sizeof(input_signal_t));
-                    } else if(pin->port == LPC_GPIO2) {
-                        gpio2_int_enable(pin->bit, pin->intr_type);
+                    } else if(input->port == LPC_GPIO2) {
+                        gpio_int_enable(input, input->irq_mode);
                         memcpy(&gpio2_signals[c++], &inputpin[i], sizeof(input_signal_t));
                     }
                 }
@@ -1070,7 +1218,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "210604";
+    hal.driver_version = "210626";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1085,6 +1233,10 @@ bool driver_init (void) {
     hal.stepper.enable = stepperEnable;
     hal.stepper.cycles_per_tick = stepperCyclesPerTick;
     hal.stepper.pulse_start = stepperPulseStart;
+#ifdef SQUARING_ENABLED
+    hal.stepper.get_auto_squared = getAutoSquaredAxes;
+    hal.stepper.disable_motors = StepperDisableMotors;
+#endif
 
     hal.limits.enable = limitsEnable;
     hal.limits.get_state = limitsGetState;
@@ -1107,26 +1259,16 @@ bool driver_init (void) {
     hal.control.get_state = systemGetState;
 
 #if USB_SERIAL_CDC
-    usbInit();
-    hal.stream.read = usbGetC;
-    hal.stream.write = usbWriteS;
-    hal.stream.write_all = usbWriteS;
-    hal.stream.write_char = usbPutC;
-    hal.stream.get_rx_buffer_available = usbRxFree;
-    hal.stream.reset_read_buffer = usbRxFlush;
-    hal.stream.cancel_read_buffer = usbRxCancel;
-    hal.stream.suspend_read = usbSuspendInput;
+    const io_stream_t *stream = usbInit();
 #else
-    serialInit();
-    hal.stream.read = serialGetC;
-    hal.stream.write = serialWriteS;
-    hal.stream.write_all = serialWriteS;
-    hal.stream.write_char = serialPutC;
-    hal.stream.get_rx_buffer_available = serialRxFree;
-    hal.stream.reset_read_buffer = serialRxFlush;
-    hal.stream.cancel_read_buffer = serialRxCancel;
-    hal.stream.suspend_read = serialSuspendInput;
+    const io_stream_t *stream = serialInit();
 #endif
+
+    enqueue_realtime_command_ptr enqrt = hal.stream.enqueue_realtime_command;
+
+    memcpy(&hal.stream, stream, sizeof(io_stream_t));
+
+    hal.stream.enqueue_realtime_command = enqrt;
 
 #if EEPROM_ENABLE
     i2c_eeprom_init();
@@ -1168,6 +1310,46 @@ bool driver_init (void) {
     hal.driver_cap.probe_pull_up = On;
 #if SDCARD_ENABLE
     hal.driver_cap.sd_card = On;
+#endif
+
+
+
+    uint32_t i;
+    input_signal_t *input;
+
+#ifdef HAS_IOPORTS
+    static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0};
+#endif
+
+    for(i = 0 ; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
+        input = &inputpin[i];
+#ifdef HAS_IOPORTS
+        if(input->group == PinGroup_AuxInput) {
+            if(aux_inputs.pins.inputs == NULL)
+                aux_inputs.pins.inputs = input;
+            aux_inputs.n_pins++;
+        }
+#endif
+        if(input->group == PinGroup_Limit) {
+            if(limit_inputs.pins.inputs == NULL)
+                limit_inputs.pins.inputs = input;
+            limit_inputs.n_pins++;
+        }
+    }
+
+#ifdef HAS_IOPORTS
+    output_signal_t *output;
+    for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
+        output = &outputpin[i];
+        if(output->group == PinGroup_AuxOutput) {
+            if(aux_outputs.pins.outputs == NULL)
+                aux_outputs.pins.outputs = output;
+            aux_outputs.n_pins++;
+        }
+    }
+
+    ioports_init(&aux_inputs, &aux_outputs);
+
 #endif
 
 #ifdef HAS_BOARD_INIT
@@ -1262,12 +1444,9 @@ void DEBOUNCE_IRQHandler (void)
 
     while((signal = get_debounce())) {
 
-        if(signal->port == LPC_GPIO0)
-            gpio0_int_enable(signal->bit, signal->intr_type);
-        else if(signal->port == LPC_GPIO2)
-            gpio2_int_enable(signal->bit, signal->intr_type);
+        gpio_int_enable(signal, signal->irq_mode);
 
-        if(DIGITAL_IN(signal->port, signal->bit) == (signal->intr_type == GPIO_Intr_Falling ? 0 : 1))
+        if(DIGITAL_IN(signal->port, signal->bit) == (signal->irq_mode == IRQ_Mode_Falling ? 0 : 1))
           switch(signal->group) {
 
             case PinGroup_Limit:
@@ -1301,10 +1480,23 @@ void GPIO_IRQHandler (void)
         while(gpio0_signals[i].port != NULL) {
             if(iflags & gpio0_signals[i].bit) {
                 if(gpio0_signals[i].debounce && enqueue_debounce(&gpio0_signals[i])) {
-                    gpio0_int_enable(gpio0_signals[i].bit, GPIO_Intr_None);
+                    gpio_int_enable(&gpio0_signals[i], IRQ_Mode_None);
                     debounce = true;
-                } else
-                    grp |= gpio0_signals[i].group;
+                } else switch(gpio0_signals[i].group) {
+#ifdef HAS_IOPORTS
+                    case PinGroup_AuxInput:
+                        ioports_event(&gpio0_signals[i]);
+                        break;
+#endif
+#if KEYPAD_ENABLE
+                    case PinGroup_Keypad:
+                        keypad_keyclick_handler(BITBAND_PERI(KEYPAD_PORT->PIO_PDSR, KEYPAD_PIN));
+                        break;
+#endif
+                    default:
+                        grp |= gpio0_signals[i].group;
+                        break;
+                }
             }
             i++;
         }
@@ -1317,10 +1509,23 @@ void GPIO_IRQHandler (void)
         while(gpio2_signals[i].port != NULL) {
             if(iflags & gpio2_signals[i].bit) {
                 if(gpio2_signals[i].debounce && enqueue_debounce(&gpio2_signals[i])) {
-                    gpio2_int_enable(gpio0_signals[i].bit, GPIO_Intr_None);
+                    gpio_int_enable(&gpio2_signals[i], IRQ_Mode_None);
                     debounce = true;
-                } else
-                    grp |= gpio2_signals[i].group;
+                } else switch(gpio2_signals[i].group) {
+#ifdef HAS_IOPORTS
+                    case PinGroup_AuxInput:
+                        ioports_event(&gpio2_signals[i]);
+                        break;
+#endif
+#if KEYPAD_ENABLE
+                    case PinGroup_Keypad:
+                        keypad_keyclick_handler(BITBAND_PERI(KEYPAD_PORT->PIO_PDSR, KEYPAD_PIN));
+                        break;
+#endif
+                    default:
+                        grp |= gpio2_signals[i].group;
+                        break;
+                }
             }
             i++;
         }
@@ -1340,11 +1545,6 @@ void GPIO_IRQHandler (void)
 
     if(grp & PinGroup_Control)
         hal.control.interrupt_callback(systemGetState());
-
-#if KEYPAD_ENABLE
-    if(grp & PinGroup_Keypad)
-        keypad_keyclick_handler(BITBAND_PERI(KEYPAD_PORT->PIO_PDSR, KEYPAD_PIN));
-#endif
 }
 
 // Interrupt handler for 1 ms interval timer

@@ -21,15 +21,14 @@
 
 */
 
+#pragma once
+
 #include <stdint.h>
 #include <stdbool.h>
 
-void usbInit (void);
+#include "driver.h"
+
+const io_stream_t *usbInit (void);
 int16_t usbGetC (void);
-bool usbPutC (const char c);
-void usbWriteS (const char *s);
-uint16_t usbRxFree (void);
-void usbRxFlush (void);
-void usbRxCancel (void);
-void usbBufferInput (uint8_t *data, uint32_t length);
-bool usbSuspendInput (bool suspend);
+
+/*EOF*/

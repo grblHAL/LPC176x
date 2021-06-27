@@ -31,12 +31,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "grbl/hal.h"
-#include "grbl/nuts_bolts.h"
-
 #ifndef OVERRIDE_MY_MACHINE
 #include "my_machine.h"
 #endif
+
+#include "grbl/driver_opts.h"
 
 #include "portmacros.h"
 
@@ -122,76 +121,6 @@
 #include "motors/trinamic.h"
 #endif
 
-#ifndef X_STEP_PORT
-#define X_STEP_PORT STEP_PORT
-#endif
-#ifndef Y_STEP_PORT
-#define Y_STEP_PORT STEP_PORT
-#endif
-#ifndef Z_STEP_PORT
-#define Z_STEP_PORT STEP_PORT
-#endif
-#if defined(A_AXIS) && !defined(A_STEP_PORT)
-#define A_STEP_PORT STEP_PORT
-#endif
-#if defined(B_AXIS) && !defined(B_STEP_PORT)
-#define B_STEP_PORT STEP_PORT
-#endif
-
-#ifndef X_DIRECTION_PORT
-#define X_DIRECTION_PORT DIRECTION_PORT
-#endif
-#ifndef Y_DIRECTION_PORT
-#define Y_DIRECTION_PORT DIRECTION_PORT
-#endif
-#ifndef Z_DIRECTION_PORT
-#define Z_DIRECTION_PORT DIRECTION_PORT
-#endif
-#if defined(A_AXIS) && !defined(A_DIRECTION_PORT)
-#define A_DIRECTION_PORT DIRECTION_PORT
-#endif
-#if defined(B_AXIS) && !defined(B_DIRECTION_PORT)
-#define B_DIRECTION_PORT DIRECTION_PORT
-#endif
-
-#ifndef X_DISABLE_PORT
-#define X_DISABLE_PORT DISABLE_PORT
-#endif
-#ifndef Y_DISABLE_PORT
-#define Y_DISABLE_PORT DISABLE_PORT
-#endif
-#ifndef Z_DISABLE_PORT
-#define Z_DISABLE_PORT DISABLE_PORT
-#endif
-#if defined(A_AXIS) && !defined(A_DISABLE_PORT)
-#define A_DISABLE_PORT DISABLE_PORT
-#endif
-#if defined(B_AXIS) && !defined(B_DISABLE_PORT)
-#define B_DISABLE_PORT DISABLE_PORT
-#endif
-
-#ifndef X_LIMIT_PORT
-#define X_LIMIT_PORT   LIMIT_PORT
-  #if LIMIT_PORTN != 0
-    #define X_LIMIT_INTCLR LIMIT_INTCLR
-    #define X_LIMIT_INTENR LIMIT_INTENR
-  #endif
-#endif
-#ifndef Y_LIMIT_PORT
-#define Y_LIMIT_PORT   LIMIT_PORT
-  #if LIMIT_PORTN != 0
-    #define Y_LIMIT_INTCLR LIMIT_INTCLR
-    #define Y_LIMIT_INTENR LIMIT_INTENR
-  #endif
-#ifndef Z_LIMIT_PORT
-#define Z_LIMIT_PORT   LIMIT_PORT
-  #if LIMIT_PORTN != 0
-    #define Z_LIMIT_INTCLR LIMIT_INTCLR
-    #define Z_LIMIT_INTENR LIMIT_INTENR
-  #endif
-#endif
-#endif
-
 #ifndef RESET_PORT
 #define RESET_PORT CONTROL_PORT
 #define RESET_INTENR CONTROL_INTENR
@@ -212,6 +141,39 @@
 #define CYCLE_START_INTCLR CONTROL_INTCLR
 #endif
 
+typedef struct {
+    LPC_GPIO_T *port;
+    uint32_t pin;
+    uint32_t bit;
+    pin_function_t id;
+    pin_group_t group;
+    bool debounce;
+    pin_irq_mode_t irq_mode;
+    pin_mode_t cap;
+    ioport_interrupt_callback_ptr interrupt_callback;
+} input_signal_t;
+
+typedef struct {
+    LPC_GPIO_T *port;
+    uint32_t pin;
+    uint32_t bit;
+    pin_function_t id;
+    pin_group_t group;
+} output_signal_t;
+
+typedef struct {
+    uint8_t n_pins;
+    union {
+        input_signal_t *inputs;
+        output_signal_t *outputs;
+    } pins;
+} pin_group_pins_t;
+
+#ifdef HAS_IOPORTS
+void ioports_init (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
+void ioports_event (input_signal_t *input);
+#endif
+
 #ifdef SD_CS_PIN
 #define SD_CS_BIT (1<<SD_CS_PIN)
 #endif
@@ -219,5 +181,6 @@
 // Driver initialization entry point
 
 bool driver_init (void);
+void gpio_int_enable (const input_signal_t *input, pin_irq_mode_t irq_mode);
 
 #endif // __DRIVER_H__

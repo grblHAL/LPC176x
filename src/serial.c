@@ -49,38 +49,11 @@ static const PINMUX_GRP_T uart_pinmux[] = {
   static volatile uint8_t flow_ctrl = XON_SENT; // Flow control state variable
 #endif
 
-void serialInit (void)
-{
-    Chip_IOCON_SetPinMuxing(LPC_IOCON, uart_pinmux, sizeof(uart_pinmux) / sizeof(PINMUX_GRP_T));
-
-    /* Setup UART for 115.2K8N1 */
-    Chip_UART_Init(SERIAL_MODULE);
-    Chip_UART_SetBaud(SERIAL_MODULE, 115200);
-    Chip_UART_ConfigData(SERIAL_MODULE, (UART_LCR_WLEN8|UART_LCR_SBS_1BIT));
-    Chip_UART_SetupFIFOS(SERIAL_MODULE, (UART_FCR_FIFO_EN|UART_FCR_TRG_LEV2));
-    Chip_UART_TXEnable(SERIAL_MODULE);
-
-    /* Reset and enable FIFOs, FIFO trigger level 3 (14 chars) */
-    Chip_UART_SetupFIFOS(SERIAL_MODULE, (UART_FCR_FIFO_EN|UART_FCR_RX_RS|UART_FCR_TX_RS|UART_FCR_TRG_LEV3));
-
-    /* Enable receive data and line status interrupt */
-    Chip_UART_IntEnable(SERIAL_MODULE, UART_IER_RBRINT);
-//  Chip_UART_IntEnable(SERIAL_MODULE, (UART_IER_RBRINT|UART_IER_RLSINT));
-
-    /* preemption = 3, sub-priority = 1 */
-    NVIC_SetPriority(SERIAL_MODULE_INT, 3);
-    NVIC_EnableIRQ(SERIAL_MODULE_INT);
-
-#ifdef RTS_PORT
-    RTS_PORT->DIR |= RTS_BIT;
-    BITBAND_PERI(RTS_PORT->OUT, RTS_PIN) = 0;
-#endif
-}
-
+  /*
 //
 // Returns number of characters in serial output buffer
 //
-uint16_t serialTxCount (void)
+static uint16_t serialTxCount (void)
 {
   uint16_t tail = txbuffer.tail;
   return BUFCOUNT(txbuffer.head, tail, TX_BUFFER_SIZE);
@@ -89,16 +62,17 @@ uint16_t serialTxCount (void)
 //
 // Returns number of characters in serial input buffer
 //
-uint16_t serialRxCount (void)
+static uint16_t serialRxCount (void)
 {
   uint16_t tail = rxbuffer.tail, head = rxbuffer.head;
   return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
+*/
 
 //
 // Returns number of free characters in serial input buffer
 //
-uint16_t serialRxFree (void)
+static uint16_t serialRxFree (void)
 {
   unsigned int tail = rxbuffer.tail, head = rxbuffer.head;
   return RX_BUFFER_SIZE - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
@@ -107,7 +81,7 @@ uint16_t serialRxFree (void)
 //
 // Flushes the serial input buffer
 //
-void serialRxFlush (void)
+static void serialRxFlush (void)
 {
     rxbuffer.head = rxbuffer.tail = 0;
     SERIAL_MODULE->FCR |= UART_FCR_RX_RS; // Flush FIFO too
@@ -120,7 +94,7 @@ void serialRxFlush (void)
 //
 // Flushes and adds a CAN character to the serial input buffer
 //
-void serialRxCancel (void)
+static void serialRxCancel (void)
 {
     rxbuffer.data[rxbuffer.head] = ASCII_CAN;
     rxbuffer.tail = rxbuffer.head;
@@ -146,7 +120,7 @@ static inline bool serialPutCNonBlocking (const char c)
 //
 // Writes a character to the serial output stream
 //
-bool serialPutC (const char c)
+static bool serialPutC (const char c)
 {
     uint32_t next_head;
 
@@ -171,18 +145,18 @@ bool serialPutC (const char c)
 //
 // Writes a null terminated string to the serial output stream, blocks if buffer full
 //
-void serialWriteS (const char *s)
+static void serialWriteS (const char *s)
 {
     char c, *ptr = (char *)s;
 
     while((c = *ptr++) != '\0')
         serialPutC(c);
 }
-
+/*
 //
 // Writes a null terminated string to the serial output stream followed by EOL, blocks if buffer full
 //
-void serialWriteLn (const char *s)
+static void serialWriteLn (const char *s)
 {
     serialWriteS(s);
     serialWriteS(ASCII_EOL);
@@ -191,18 +165,18 @@ void serialWriteLn (const char *s)
 //
 // Writes a number of characters from string to the serial output stream followed by EOL, blocks if buffer full
 //
-void serialWrite(const char *s, uint16_t length)
+static void serialWrite(const char *s, uint16_t length)
 {
     char *ptr = (char *)s;
 
     while(length--)
         serialPutC(*ptr++);
 }
-
+*/
 //
 // serialGetC - returns -1 if no data available
 //
-int16_t serialGetC (void)
+static int16_t serialGetC (void)
 {
     uint16_t bptr = rxbuffer.tail;
 
@@ -220,9 +194,63 @@ int16_t serialGetC (void)
     return (int16_t)data;
 }
 
-bool serialSuspendInput (bool suspend)
+static bool serialSuspendInput (bool suspend)
 {
     return stream_rx_suspend(&rxbuffer, suspend);
+}
+
+static bool serialSetBaudRate (uint32_t baud_rate)
+{
+    Chip_UART_SetBaud(SERIAL_MODULE, baud_rate);
+
+    rxbuffer.tail = rxbuffer.head;
+    txbuffer.tail = txbuffer.head;
+
+    return true;
+}
+
+const io_stream_t *serialInit (void)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Serial,
+        .connected = true,
+        .read = serialGetC,
+        .write = serialWriteS,
+        .write_char = serialPutC,
+        .write_all = serialWriteS,
+        .get_rx_buffer_free = serialRxFree,
+        .reset_read_buffer = serialRxFlush,
+        .cancel_read_buffer = serialRxCancel,
+        .suspend_read = serialSuspendInput,
+        .set_baud_rate = serialSetBaudRate
+    };
+
+    Chip_IOCON_SetPinMuxing(LPC_IOCON, uart_pinmux, sizeof(uart_pinmux) / sizeof(PINMUX_GRP_T));
+
+    /* Setup UART for 115.2K8N1 */
+    Chip_UART_Init(SERIAL_MODULE);
+    Chip_UART_SetBaud(SERIAL_MODULE, 115200);
+    Chip_UART_ConfigData(SERIAL_MODULE, (UART_LCR_WLEN8|UART_LCR_SBS_1BIT));
+    Chip_UART_SetupFIFOS(SERIAL_MODULE, (UART_FCR_FIFO_EN|UART_FCR_TRG_LEV2));
+    Chip_UART_TXEnable(SERIAL_MODULE);
+
+    /* Reset and enable FIFOs, FIFO trigger level 3 (14 chars) */
+    Chip_UART_SetupFIFOS(SERIAL_MODULE, (UART_FCR_FIFO_EN|UART_FCR_RX_RS|UART_FCR_TX_RS|UART_FCR_TRG_LEV3));
+
+    /* Enable receive data and line status interrupt */
+    Chip_UART_IntEnable(SERIAL_MODULE, UART_IER_RBRINT);
+//  Chip_UART_IntEnable(SERIAL_MODULE, (UART_IER_RBRINT|UART_IER_RLSINT));
+
+    /* preemption = 3, sub-priority = 1 */
+    NVIC_SetPriority(SERIAL_MODULE_INT, 3);
+    NVIC_EnableIRQ(SERIAL_MODULE_INT);
+
+#ifdef RTS_PORT
+    RTS_PORT->DIR |= RTS_BIT;
+    BITBAND_PERI(RTS_PORT->OUT, RTS_PIN) = 0;
+#endif
+
+    return &stream;
 }
 
 //

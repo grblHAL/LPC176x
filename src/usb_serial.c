@@ -122,8 +122,113 @@ typedef struct {
 static usb_tx_buf txbuf = {0};
 static stream_rx_buffer_t rxbuf = {0};
 
-void usbInit (void)
+//
+// Returns number of free characters in the input buffer
+//
+static uint16_t usbRxFree (void)
 {
+    uint16_t tail = rxbuf.tail, head = rxbuf.head;
+    return RX_BUFFER_SIZE - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+//
+// Flushes the input buffer
+//
+static void usbRxFlush (void)
+{
+    rxbuf.head = rxbuf.tail = 0;
+}
+
+//
+// Flushes and adds a CAN character to the input buffer
+//
+static void usbRxCancel (void)
+{
+    rxbuf.data[rxbuf.head] = ASCII_CAN;
+    rxbuf.tail = rxbuf.head;
+    rxbuf.head = (rxbuf.tail + 1) & (RX_BUFFER_SIZE - 1);
+}
+
+//
+// Writes a single character to the USB output stream, blocks if buffer full
+//
+static bool usbPutC (const char c)
+{
+    static uint8_t buf[1];
+
+    *buf = c;
+
+    while(vcom_write(buf, 1) != 1) {
+        if(!hal.stream_blocking_callback())
+            return false;
+    }
+
+    return true;
+}
+
+//
+// Writes a null terminated string to the USB output stream, blocks if buffer full
+// Buffers string up to EOL (LF) before transmitting
+//
+static void usbWriteS (const char *s)
+{
+    size_t length = strlen(s);
+
+    if(vcom_connected() && length + txbuf.length < sizeof(txbuf.data)) {
+        memcpy(txbuf.s, s, length);
+        txbuf.length += length;
+        txbuf.s += length;
+        if(s[length - 1] == '\n' || txbuf.length > 40) {
+            length = txbuf.length;
+            txbuf.s = txbuf.data;
+            while(length) {
+                txbuf.length = vcom_write((uint8_t *)txbuf.s, length > 64 ? 64 : length);
+                txbuf.s += txbuf.length;
+                length -= txbuf.length;
+                if(!hal.stream_blocking_callback())
+                    return;
+            }
+            txbuf.length = 0;
+            txbuf.s = txbuf.data;
+        }
+    }
+}
+
+//
+// usbGetC - returns -1 if no data available
+//
+static int16_t usbGetC (void)
+{
+    uint16_t bptr = rxbuf.tail;
+
+    if(bptr == rxbuf.head)
+        return -1; // no data available else EOF
+
+    char data = rxbuf.data[bptr++];             // Get next character, increment tmp pointer
+    rxbuf.tail = bptr & (RX_BUFFER_SIZE - 1);   // and update pointer
+
+    return (int16_t)data;
+}
+
+static bool usbSuspendInput (bool suspend)
+{
+    return stream_rx_suspend(&rxbuf, suspend);
+}
+
+const io_stream_t *usbInit (void)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Serial,
+        .read = usbGetC,
+        .write = usbWriteS,
+        .write_char = usbPutC,
+        .write_all = usbWriteS,
+        .get_rx_buffer_free = usbRxFree,
+        .reset_read_buffer = usbRxFlush,
+        .cancel_read_buffer = usbRxCancel,
+        .suspend_read = usbSuspendInput
+    };
+
     USBD_API_INIT_PARAM_T usb_param;
     USB_CORE_DESCS_T desc;
 //  ErrorCode_t ret = LPC_OK;
@@ -160,99 +265,8 @@ void usbInit (void)
     }
 
     txbuf.s = txbuf.data;
-}
 
-//
-// Returns number of free characters in the input buffer
-//
-uint16_t usbRxFree (void)
-{
-    uint16_t tail = rxbuf.tail, head = rxbuf.head;
-    return RX_BUFFER_SIZE - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
-}
-
-//
-// Flushes the input buffer
-//
-void usbRxFlush (void)
-{
-    rxbuf.head = rxbuf.tail = 0;
-}
-
-//
-// Flushes and adds a CAN character to the input buffer
-//
-void usbRxCancel (void)
-{
-    rxbuf.data[rxbuf.head] = ASCII_CAN;
-    rxbuf.tail = rxbuf.head;
-    rxbuf.head = (rxbuf.tail + 1) & (RX_BUFFER_SIZE - 1);
-}
-
-//
-// Writes a single character to the USB output stream, blocks if buffer full
-//
-bool usbPutC (const char c)
-{
-    static uint8_t buf[1];
-
-    *buf = c;
-
-    while(vcom_write(buf, 1) != 1) {
-        if(!hal.stream_blocking_callback())
-            return false;
-    }
-
-    return true;
-}
-
-//
-// Writes a null terminated string to the USB output stream, blocks if buffer full
-// Buffers string up to EOL (LF) before transmitting
-//
-void usbWriteS (const char *s)
-{
-    size_t length = strlen(s);
-
-    if(vcom_connected() && length + txbuf.length < sizeof(txbuf.data)) {
-        memcpy(txbuf.s, s, length);
-        txbuf.length += length;
-        txbuf.s += length;
-        if(s[length - 1] == '\n' || txbuf.length > 40) {
-            length = txbuf.length;
-            txbuf.s = txbuf.data;
-            while(length) {
-                txbuf.length = vcom_write((uint8_t *)txbuf.s, length > 64 ? 64 : length);
-                txbuf.s += txbuf.length;
-                length -= txbuf.length;
-                if(!hal.stream_blocking_callback())
-                    return;
-            }
-            txbuf.length = 0;
-            txbuf.s = txbuf.data;
-        }
-    }
-}
-
-//
-// usbGetC - returns -1 if no data available
-//
-int16_t usbGetC (void)
-{
-    uint16_t bptr = rxbuf.tail;
-
-    if(bptr == rxbuf.head)
-        return -1; // no data available else EOF
-
-    char data = rxbuf.data[bptr++];             // Get next character, increment tmp pointer
-    rxbuf.tail = bptr & (RX_BUFFER_SIZE - 1);   // and update pointer
-
-    return (int16_t)data;
-}
-
-bool usbSuspendInput (bool suspend)
-{
-    return stream_rx_suspend(&rxbuf, suspend);
+    return &stream;
 }
 
 void usbBufferInput (uint8_t *data, uint32_t length)

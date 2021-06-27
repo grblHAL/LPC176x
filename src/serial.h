@@ -20,9 +20,12 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 
 */
+#pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
+
+#include "driver.h"
 
 #define SERIAL_IRQHandler UART0_IRQHandler
 #define SERIAL_MODULE     LPC_UART0
@@ -34,16 +37,6 @@
 #define RTS_PIN  4
 #define RTS_BIT (1<<RTS_PIN)
 
-void serialInit(void);
-int16_t serialGetC(void);
-bool serialPutC(const char c);
-void serialWriteS(const char *s);
-void serialWriteLn(const char *s);
-void serialWrite(const char *s, uint16_t length);
-bool serialSuspendInput (bool suspend);
+const io_stream_t *serialInit(void);
 
-uint16_t serialTxCount(void);
-uint16_t serialRxCount(void);
-uint16_t serialRxFree(void);
-void serialRxFlush(void);
-void serialRxCancel(void);
+/*EOF*/

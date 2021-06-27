@@ -23,6 +23,10 @@
 // P0.27, P0.28 are dedicated I2C pins without pull up/down.
 // P0.29, P0.30 must have same direction as used for USB operation.
 
+#if N_ABC_MOTORS > 2
+#error "Axis configuration is not supported!"
+#endif
+
 #define BOARD_NAME "BTT SKR V1.4 Turbo"
 
 #if TRINAMIC_ENABLE == 2130 || TRINAMIC_ENABLE == 5160
@@ -47,19 +51,7 @@ void board_init (void);
 #define Z_STEP_PORT         port(Z_STEP_PN)
 #define Z_STEP_PIN          22
 #define Z_STEP_BIT          (1<<Z_STEP_PIN)
-#ifdef A_AXIS
-#define A_STEP_PN           2
-#define A_STEP_PORT         port(A_STEP_PN)
-#define A_STEP_PIN          13
-#define A_STEP_BIT          (1<<A_STEP_PIN)
-#endif
-#ifdef B_AXIS
-#define B_STEP_PN           1
-#define B_STEP_PORT         port(B_STEP_PN)
-#define B_STEP_PIN          15
-#define B_STEP_BIT          (1<<B_STEP_PIN)
-#endif
-#define STEP_OUTMODE GPIO_BITBAND
+#define STEP_OUTMODE        GPIO_BITBAND
 
 // Define step direction output pins.
 #define X_DIRECTION_PN      2
@@ -74,46 +66,21 @@ void board_init (void);
 #define Z_DIRECTION_PORT    port(Z_DIRECTION_PN)
 #define Z_DIRECTION_PIN     11
 #define Z_DIRECTION_BIT     (1<<Z_DIRECTION_PIN)
-#ifdef A_AXIS
-#define A_DIRECTION_PN      0
-#define A_DIRECTION_PORT    port(A_DIRECTION_PN)
-#define A_DIRECTION_PIN     11
-#define A_DIRECTION_BIT     (1<<A_DIRECTION_PIN)
-#endif
-#ifdef B_AXIS
-#define B_DIRECTION_PN      1
-#define B_DIRECTION_PORT    port(B_DIRECTION_PN)
-#define B_DIRECTION_PIN     14
-#define B_DIRECTION_BIT     (1<<B_DIRECTION_PIN)
-#endif
-#define DIRECTION_OUTMODE GPIO_BITBAND
+#define DIRECTION_OUTMODE   GPIO_BITBAND
 
 // Define stepper driver enable/disable output pin(s).
-#define X_DISABLE_PN        2
-#define X_DISABLE_PORT      port(X_DISABLE_PN)
-#define X_DISABLE_PIN       1
-#define X_DISABLE_BIT       (1<<X_DISABLE_PIN)
-#define Y_DISABLE_PN        2
-#define Y_DISABLE_PORT      port(Y_DISABLE_PN)
-#define Y_DISABLE_PIN       8
-#define Y_DISABLE_BIT       (1<<Y_DISABLE_PIN)
-#define Z_DISABLE_PN        0
-#define Z_DISABLE_PORT      port(Z_DISABLE_PN)
-#define Z_DISABLE_PIN       21
-#define Z_DISABLE_BIT       (1<<Z_DISABLE_PIN)
-#ifdef A_AXIS
-#define A_DISABLE_PN        2
-#define A_DISABLE_PORT      port(A_DISABLE_PN)
-#define A_DISABLE_PIN       12
-#define A_DISABLE_BIT       (1<<A_DISABLE_PIN)
-#endif
-#ifdef B_AXIS
-#define B_DISABLE_PN        1
-#define B_DISABLE_PORT      port(B_DISABLE_PN)
-#define B_DISABLE_PIN       16
-#define B_DISABLE_BIT       (1<<B_DISABLE_PIN)
-#endif
-#define DISABLE_OUTMODE GPIO_BITBAND
+#define X_ENABLE_PN         2
+#define X_ENABLE_PORT       port(X_ENABLE_PN)
+#define X_ENABLE_PIN        1
+#define X_ENABLE_BIT        (1<<X_ENABLE_PIN)
+#define Y_ENABLE_PN         2
+#define Y_ENABLE_PORT       port(Y_ENABLE_PN)
+#define Y_ENABLE_PIN        8
+#define Y_ENABLE_BIT        (1<<Y_ENABLE_PIN)
+#define Z_ENABLE_PN         0
+#define Z_ENABLE_PORT       port(Z_ENABLE_PN)
+#define Z_ENABLE_PIN        21
+#define Z_ENABLE_BIT        (1<<Z_ENABLE_PIN)
 
 // Define homing/hard limit switch input pins.
 // NOTE: All limit bits (needs to be on same port)
@@ -125,25 +92,40 @@ void board_init (void);
 #define Y_LIMIT_BIT         (1<<Y_LIMIT_PIN)
 #define Z_LIMIT_PIN         27
 #define Z_LIMIT_BIT         (1<<Z_LIMIT_PIN)
-#ifdef A_AXIS
-#define A_LIMIT_PIN         26
-#define A_LIMIT_BIT         (1<<A_LIMIT_PIN)
-#endif
-#ifdef B_AXIS
-#define B_LIMIT_PIN         25
-#define B_LIMIT_BIT         (1<<A_LIMIT_PIN)
+#define LIMITS_POLL_PORT    port(1) // NOTE: Port 1 is not interrupt capable, use polling instead!
+#define LIMIT_INMODE        GPIO_BITBAND
+
+// Define ganged axis or A axis step pulse and step direction output pins.
+#if N_ABC_MOTORS > 0
+#define M3_AVAILABLE
+#define M3_STEP_PN          2
+#define M3_STEP_PORT        port(M3_STEP_PN)
+#define M3_STEP_PIN         13
+#define M3_DIRECTION_PN     0
+#define M3_DIRECTION_PORT   port(M3_DIRECTION_PN)
+#define M3_DIRECTION_PIN    11
+#define M3_LIMIT_PORT       port(LIMIT_PN)
+#define M3_LIMIT_PIN        26
+#define M3_ENABLE_PN        2
+#define M3_ENABLE_PORT      port(M3_ENABLE_PN)
+#define M3_ENABLE_PIN       12
 #endif
 
-#if N_AXIS > 4
-#define LIMIT_MASK (X_LIMIT_BIT|Y_LIMIT_BIT|Z_LIMIT_BIT|A_LIMIT_BIT|B_LIMIT_BIT)
-#elif N_AXIS > 3
-#define LIMIT_MASK (X_LIMIT_BIT|Y_LIMIT_BIT|Z_LIMIT_BIT|A_LIMIT_BIT)
-#else
-#define LIMIT_MASK (X_LIMIT_BIT|Y_LIMIT_BIT|Z_LIMIT_BIT)
+// Define ganged axis or B axis step pulse and step direction output pins.
+#if N_ABC_MOTORS == 2
+#define M4_AVAILABLE
+#define M4_STEP_PN          1
+#define M4_STEP_PORT        port(M4_STEP_PN)
+#define M4_STEP_PIN         15
+#define M4_DIRECTION_PN     1
+#define M4_DIRECTION_PORT   port(M4_DIRECTION_PN)
+#define M4_DIRECTION_PIN    14
+#define M3_LIMIT_PORT       port(LIMIT_PN)
+#define M3_LIMIT_PIN        25
+#define M4_ENABLE_PN        1
+#define M4_ENABLE_PORT      port(M4_ENABLE_PN)
+#define M4_ENABLE_PIN       16
 #endif
-
-#define LIMITS_POLL_PORT port(1) // NOTE: Port 1 is not interrupt capable, use polling instead!
-#define LIMIT_INMODE GPIO_BITBAND
 
 // Define probe switch input pin.
 #define PROBE_PN    0
