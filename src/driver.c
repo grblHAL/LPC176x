@@ -232,9 +232,9 @@ static output_signal_t outputpin[] = {
     { .id = Output_SpindleDir,      .port = SPINDLE_DIRECTION_PORT, .pin = SPINDLE_DIRECTION_PIN,   .group = PinGroup_SpindleControl },
 #endif
 #endif
-    { .id = Output_CoolantMist,     .port = COOLANT_FLOOD_PORT,     .pin = COOLANT_FLOOD_PIN,       .group = PinGroup_Coolant },
+    { .id = Output_CoolantFlood,    .port = COOLANT_FLOOD_PORT,     .pin = COOLANT_FLOOD_PIN,       .group = PinGroup_Coolant },
 #ifdef COOLANT_MIST_PIN
-    { .id = Output_CoolantFlood,    .port = COOLANT_MIST_PORT,      .pin = COOLANT_MIST_PIN,        .group = PinGroup_Coolant },
+    { .id = Output_CoolantMist,     .port = COOLANT_MIST_PORT,      .pin = COOLANT_MIST_PIN,        .group = PinGroup_Coolant },
 #endif
 #ifdef SD_CS_PORT
     { .id = Output_SdCardCS,        .port = SD_CS_PORT,             .pin = SD_CS_PIN,               .group = PinGroup_SdCard },
@@ -1035,7 +1035,7 @@ void settings_changed (settings_t *settings)
                 if(input->group == PinGroup_AuxInput) {
                     pullup = true;
                     input->cap.pull_mode = (PullMode_Up|PullMode_Down);
-                    input->cap.irq_mode = input->port == LPC_GPIO0 || input->port == LPC_GPIO2 ? (IRQ_Mode_Rising|IRQ_Mode_Falling) : IRQ_Mode_None;
+                    input->cap.irq_mode = input->port == LPC_GPIO0 || input->port == LPC_GPIO2 ? (IRQ_Mode_Rising|IRQ_Mode_Falling|IRQ_Mode_Change) : IRQ_Mode_None;
                 }
 
                 input->port->DIR &= ~input->bit;
@@ -1095,6 +1095,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
         pin.function = inputpin[i].id;
         pin.group = inputpin[i].group;
         pin.port = low_level ? (void *)inputpin[i].port : (void *)port2char(inputpin[i].port);
+        pin.description = inputpin[i].description;
         pin.mode.pwm = pin.group == PinGroup_SpindlePWM;
 
         pin_info(&pin);
@@ -1108,6 +1109,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
         pin.function = outputpin[i].id;
         pin.group = outputpin[i].group;
         pin.port = low_level ? (void *)outputpin[i].port : (void *)port2char(outputpin[i].port);
+        pin.description = outputpin[i].description;
 
         pin_info(&pin);
     };
@@ -1218,7 +1220,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "210626";
+    hal.driver_version = "210703";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1312,8 +1314,6 @@ bool driver_init (void) {
     hal.driver_cap.sd_card = On;
 #endif
 
-
-
     uint32_t i;
     input_signal_t *input;
 
@@ -1356,11 +1356,7 @@ bool driver_init (void) {
     board_init();
 #endif
 
-#if TRINAMIC_ENABLE
-    trinamic_init();
-#endif
-
-    my_plugin_init();
+#include "grbl/plugins_init.h"
 
     // No need to move version check before init.
     // Compiler will fail any signature mismatch for existing entries.
