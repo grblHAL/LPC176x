@@ -163,13 +163,13 @@ static output_signal_t outputpin[] = {
     { .id = Output_StepC,           .port = C_STEP_PORT,            .pin = C_STEP_PIN,              .group = PinGroup_StepperStep },
 #endif
 #ifdef X2_STEP_PIN
-    { .id = Output_StepX,           .port = X2_STEP_PORT,           .pin = X2_STEP_PIN,             .group = PinGroup_StepperStep },
+    { .id = Output_StepX_2,         .port = X2_STEP_PORT,           .pin = X2_STEP_PIN,             .group = PinGroup_StepperStep },
 #endif
 #ifdef Y2_STEP_PIN
-    { .id = Output_StepY,           .port = Y2_STEP_PORT,           .pin = Y2_STEP_PIN,             .group = PinGroup_StepperStep },
+    { .id = Output_StepY_2,         .port = Y2_STEP_PORT,           .pin = Y2_STEP_PIN,             .group = PinGroup_StepperStep },
 #endif
 #ifdef Z2_STEP_PIN
-    { .id = Output_StepZ,           .port = Z2_STEP_PORT,           .pin = Z2_STEP_PIN,             .group = PinGroup_StepperStep },
+    { .id = Output_StepZ_2,         .port = Z2_STEP_PORT,           .pin = Z2_STEP_PIN,             .group = PinGroup_StepperStep },
 #endif
     { .id = Output_DirX,            .port = X_DIRECTION_PORT,       .pin = X_DIRECTION_PIN,         .group = PinGroup_StepperDir },
     { .id = Output_DirY,            .port = Y_DIRECTION_PORT,       .pin = Y_DIRECTION_PIN,         .group = PinGroup_StepperDir },
@@ -184,13 +184,13 @@ static output_signal_t outputpin[] = {
     { .id = Output_DirC,            .port = C_DIRECTION_PORT,       .pin = C_DIRECTION_PIN,         .group = PinGroup_StepperDir },
 #endif
 #ifdef X2_DIRECTION_PIN
-    { .id = Output_DirX,            .port = X2_DIRECTION_PORT,      .pin = X2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
+    { .id = Output_DirX_2,          .port = X2_DIRECTION_PORT,      .pin = X2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
 #endif
 #ifdef Y2_DIRECTION_PIN
-    { .id = Output_DirY,            .port = Y2_DIRECTION_PORT,      .pin = Y2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
+    { .id = Output_DirY_2,          .port = Y2_DIRECTION_PORT,      .pin = Y2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
 #endif
 #ifdef Z2_DIRECTION_PIN
-    { .id = Output_DirZ,            .port = Z2_DIRECTION_PORT,      .pin = Z2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
+    { .id = Output_DirZ_2,          .port = Z2_DIRECTION_PORT,      .pin = Z2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
 #endif
 #if !TRINAMIC_ENABLE
 #ifdef STEPPERS_ENABLE_PORT
@@ -282,15 +282,15 @@ static void stepperEnable (axes_signals_t enable)
 #else
     DIGITAL_OUT(X_ENABLE_PORT, X_ENABLE_BIT, enable.x);
   #ifdef X2_ENABLE_PIN
-    DIGITAL_OUT(X2_ENABLE_PORT, X2_ENABLE_PIN, enable.x);
+    DIGITAL_OUT(X2_ENABLE_PORT, X2_ENABLE_BIT, enable.x);
   #endif
     DIGITAL_OUT(Y_ENABLE_PORT, Y_ENABLE_BIT, enable.y);
   #ifdef Y2_ENABLE_PIN
-    DIGITAL_OUT(Y2_ENABLE_PORT, Y2_ENABLE_PIN, enable.y);
+    DIGITAL_OUT(Y2_ENABLE_PORT, Y2_ENABLE_BIT, enable.y);
   #endif
     DIGITAL_OUT(Z_ENABLE_PORT, Z_ENABLE_BIT, enable.z);
   #ifdef Z2_ENABLE_PIN
-    DIGITAL_OUT(Z2_ENABLE_PORT, Z2_ENABLE_PIN, enable.z);
+    DIGITAL_OUT(Z2_ENABLE_PORT, Z2_ENABLE_BIT, enable.z);
   #endif
   #ifdef A_AXIS
     DIGITAL_OUT(A_ENABLE_PORT, A_ENABLE_BIT, enable.a);
@@ -1220,7 +1220,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "210703";
+    hal.driver_version = "210726";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1261,16 +1261,10 @@ bool driver_init (void) {
     hal.control.get_state = systemGetState;
 
 #if USB_SERIAL_CDC
-    const io_stream_t *stream = usbInit();
+    memcpy(&hal.stream, usbInit(), sizeof(io_stream_t));
 #else
-    const io_stream_t *stream = serialInit();
+    memcpy(&hal.stream, serialInit(), sizeof(io_stream_t));
 #endif
-
-    enqueue_realtime_command_ptr enqrt = hal.stream.enqueue_realtime_command;
-
-    memcpy(&hal.stream, stream, sizeof(io_stream_t));
-
-    hal.stream.enqueue_realtime_command = enqrt;
 
 #if EEPROM_ENABLE
     i2c_eeprom_init();

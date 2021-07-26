@@ -29,11 +29,13 @@
 #include "driver.h"
 #include "serial.h"
 #include "grbl/hal.h"
+#include "grbl/protocol.h"
 
 #include "chip.h"
 
-static stream_rx_buffer_t rxbuffer = {0};
-static stream_tx_buffer_t txbuffer = {0};
+static stream_rx_buffer_t rxbuf = {0};
+static stream_tx_buffer_t txbuf = {0};
+static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
 
 /* Pin muxing configuration */
 static const PINMUX_GRP_T uart_pinmux[] = {
@@ -55,8 +57,8 @@ static const PINMUX_GRP_T uart_pinmux[] = {
 //
 static uint16_t serialTxCount (void)
 {
-  uint16_t tail = txbuffer.tail;
-  return BUFCOUNT(txbuffer.head, tail, TX_BUFFER_SIZE);
+  uint16_t tail = txbuf.tail;
+  return BUFCOUNT(txbuf.head, tail, TX_BUFFER_SIZE);
 }
 
 //
@@ -64,7 +66,7 @@ static uint16_t serialTxCount (void)
 //
 static uint16_t serialRxCount (void)
 {
-  uint16_t tail = rxbuffer.tail, head = rxbuffer.head;
+  uint16_t tail = rxbuf.tail, head = rxbuf.head;
   return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 */
@@ -74,8 +76,9 @@ static uint16_t serialRxCount (void)
 //
 static uint16_t serialRxFree (void)
 {
-  unsigned int tail = rxbuffer.tail, head = rxbuffer.head;
-  return RX_BUFFER_SIZE - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+    unsigned int tail = rxbuf.tail, head = rxbuf.head;
+
+    return RX_BUFFER_SIZE - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
 //
@@ -83,7 +86,7 @@ static uint16_t serialRxFree (void)
 //
 static void serialRxFlush (void)
 {
-    rxbuffer.head = rxbuffer.tail = 0;
+    rxbuf.tail = rxbuf.head;
     SERIAL_MODULE->FCR |= UART_FCR_RX_RS; // Flush FIFO too
 
 #ifdef RTS_PORT
@@ -96,9 +99,9 @@ static void serialRxFlush (void)
 //
 static void serialRxCancel (void)
 {
-    rxbuffer.data[rxbuffer.head] = ASCII_CAN;
-    rxbuffer.tail = rxbuffer.head;
-    rxbuffer.head = (rxbuffer.tail + 1) & (RX_BUFFER_SIZE - 1);
+    rxbuf.data[rxbuf.head] = ASCII_CAN;
+    rxbuf.tail = rxbuf.head;
+    rxbuf.head = BUFNEXT(rxbuf.head, rxbuf);
 #ifdef RTS_PORT
     BITBAND_PERI(RTS_PORT->OUT, RTS_PIN) = 0;
 #endif
@@ -122,21 +125,18 @@ static inline bool serialPutCNonBlocking (const char c)
 //
 static bool serialPutC (const char c)
 {
-    uint32_t next_head;
+    if(txbuf.head != txbuf.tail || !serialPutCNonBlocking(c)) { // Try to send character without buffering...
 
-    if(txbuffer.head != txbuffer.tail || !serialPutCNonBlocking(c)) {   // Try to send character without buffering...
+        uint16_t next_head = BUFNEXT(txbuf.head, txbuf);        // .. if not, get pointer to next free slot in buffer
 
-        next_head = (txbuffer.head + 1) & (TX_BUFFER_SIZE - 1);         // .. if not, set and update head pointer
-
-        while(txbuffer.tail == next_head) {                             // While TX buffer full
-            if(!hal.stream_blocking_callback())                         // check if blocking for space,
-                return false;                                           // exit if not (leaves TX buffer in an inconsistent state)
+        while(txbuf.tail == next_head) {                        // While TX buffer full
+            if(!hal.stream_blocking_callback())                 // check if blocking for space,
+                return false;                                   // exit if not (leaves TX buffer in an inconsistent state)
         }
 
-        txbuffer.data[txbuffer.head] = c;                               // Add data to buffer
-        txbuffer.head = next_head;                                      // and update head pointer
-
-        Chip_UART_IntEnable(SERIAL_MODULE, UART_IER_THREINT);           // Enable TX interrupts
+        txbuf.data[txbuf.head] = c;                             // Add data to buffer
+        txbuf.head = next_head;                                 // and update head pointer
+        Chip_UART_IntEnable(SERIAL_MODULE, UART_IER_THREINT);   // Enable TX interrupts
     }
 
     return true;
@@ -178,13 +178,13 @@ static void serialWrite(const char *s, uint16_t length)
 //
 static int16_t serialGetC (void)
 {
-    uint16_t bptr = rxbuffer.tail;
+    uint_fast16_t tail = rxbuf.tail;    // Get buffer pointer
 
-    if(bptr == rxbuffer.head)
-        return -1; // no data available else EOF
+    if(tail == rxbuf.head)
+        return -1; // no data available
 
-    char data = rxbuffer.data[bptr++];              // Get next character, increment tmp pointer
-    rxbuffer.tail = bptr & (RX_BUFFER_SIZE - 1);    // and update pointer
+    char data = rxbuf.data[tail];       // Get next character
+    rxbuf.tail = BUFNEXT(tail, rxbuf);  // and update pointer
 
 #ifdef RTS_PORT
     if (rts_state && BUFCOUNT(rx_head, rx_tail, RX_BUFFER_SIZE) < RX_BUFFER_LWM) // Clear RTS if below LWM
@@ -196,17 +196,27 @@ static int16_t serialGetC (void)
 
 static bool serialSuspendInput (bool suspend)
 {
-    return stream_rx_suspend(&rxbuffer, suspend);
+    return stream_rx_suspend(&rxbuf, suspend);
 }
 
 static bool serialSetBaudRate (uint32_t baud_rate)
 {
     Chip_UART_SetBaud(SERIAL_MODULE, baud_rate);
 
-    rxbuffer.tail = rxbuffer.head;
-    txbuffer.tail = txbuffer.head;
+    rxbuf.tail = rxbuf.head;
+    txbuf.tail = txbuf.head;
 
     return true;
+}
+
+static enqueue_realtime_command_ptr serialSetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command;
+
+    if(handler)
+        enqueue_realtime_command = handler;
+
+    return prev;
 }
 
 const io_stream_t *serialInit (void)
@@ -222,7 +232,8 @@ const io_stream_t *serialInit (void)
         .reset_read_buffer = serialRxFlush,
         .cancel_read_buffer = serialRxCancel,
         .suspend_read = serialSuspendInput,
-        .set_baud_rate = serialSetBaudRate
+        .set_baud_rate = serialSetBaudRate,
+        .set_enqueue_rt_handler = serialSetRtHandler
     };
 
     Chip_IOCON_SetPinMuxing(LPC_IOCON, uart_pinmux, sizeof(uart_pinmux) / sizeof(PINMUX_GRP_T));
@@ -264,15 +275,14 @@ void SERIAL_IRQHandler (void)
             bptr = SERIAL_MODULE->LSR;
             break;
 */
-        case UART_IIR_INTID_THRE:
-            bptr = txbuffer.tail;                                       // Temp tail position (to avoid volatile overhead)
+        case UART_IIR_INTID_THRE:;
+            uint_fast16_t tail = txbuf.tail;                            // Temp tail position (to avoid volatile overhead)
             SERIAL_MODULE->SCR = UART_TX_FIFO_SIZE;                     // Use UART scratch pad register as
-            while((--SERIAL_MODULE->SCR) && bptr != txbuffer.head) {    // counter variable for filling the transmit FIFO
-                SERIAL_MODULE->THR = txbuffer.data[bptr++];             // Send a byte from the buffer
-                bptr &= (TX_BUFFER_SIZE - 1);                           // and
-                txbuffer.tail = bptr;                                   // update tail position
+            while((--SERIAL_MODULE->SCR) && tail != txbuf.head) {       // counter variable for filling the transmit FIFO
+                SERIAL_MODULE->THR = txbuf.data[tail];                  // Send a byte from the buffer
+                tail = BUFNEXT(tail, txbuf);                            // and increment pointer
             }
-            if (bptr == txbuffer.head)                                  // Turn off TX interrupt
+            if ((txbuf.tail = tail) == txbuf.head)                      // Turn off TX interrupt
                 Chip_UART_IntDisable(SERIAL_MODULE, UART_IER_THREINT);  // when buffer empty
             break;
 
@@ -280,20 +290,17 @@ void SERIAL_IRQHandler (void)
         case UART_IIR_INTID_CTI:;
             while(SERIAL_MODULE->LSR & UART_LSR_RDR) {
                 uint32_t data = SERIAL_MODULE->RBR;
-                if(data == CMD_TOOL_ACK && !rxbuffer.backup) {
-                    stream_rx_backup(&rxbuffer);
-                    hal.stream.read = serialGetC; // restore normal input
-                } else if(!hal.stream.enqueue_realtime_command(data)) { // Read character received
+                if(!enqueue_realtime_command(data)) { // Read character received
 
-                    bptr = (rxbuffer.head + 1) & (RX_BUFFER_SIZE - 1);  // Temp head position (to avoid volatile overhead)
+                    uint16_t next_head = BUFNEXT(rxbuf.head, rxbuf);    // Get and increment buffer pointer
 
-                    if(bptr == rxbuffer.tail)                           // If buffer full
-                        rxbuffer.overflow = 1;                          // flag overflow
+                    if(next_head == rxbuf.tail)                         // If buffer full
+                        rxbuf.overflow = 1;                             // flag overflow
                     else {
-                        rxbuffer.data[rxbuffer.head] = data;            // Add data to buffer
-                        rxbuffer.head = bptr;                           // and update pointer
+                        rxbuf.data[rxbuf.head] = data;                  // Add data to buffer
+                        rxbuf.head = next_head;                         // and update pointer
                       #ifdef RTS_PORT
-                        if (!rts_state && BUFCOUNT(rxbuffer.head, rxbuffer.tail, RX_BUFFER_SIZE) >= RX_BUFFER_HWM) // Set RTS if at or above HWM
+                        if (!rts_state && BUFCOUNT(rxbuf.head, rxbuf.tail, RX_BUFFER_SIZE) >= RX_BUFFER_HWM) // Set RTS if at or above HWM
                             BITBAND_PERI(RTS_PORT->OUT, RTS_PIN) = rts_state = 1;
                       #endif
                     }

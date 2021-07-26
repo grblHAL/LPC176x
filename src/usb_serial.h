@@ -29,6 +29,6 @@
 #include "driver.h"
 
 const io_stream_t *usbInit (void);
-int16_t usbGetC (void);
+void usbBufferInput (uint8_t *data, uint32_t length);
 
 /*EOF*/
