@@ -141,6 +141,27 @@
 #define CYCLE_START_INTCLR CONTROL_INTCLR
 #endif
 
+#ifdef MOTOR_CS_PORT
+#if defined(MOTOR_CSX_PIN) & !defined(MOTOR_CSX_PORT)
+#define MOTOR_CSX_PORT MOTOR_CS_PORT
+#endif
+#if defined(MOTOR_CSY_PIN) & !defined(MOTOR_CSY_PORT)
+#define MOTOR_CSY_PORT MOTOR_CS_PORT
+#endif
+#if defined(MOTOR_CSZ_PIN) & !defined(MOTOR_CSZ_PORT)
+#define MOTOR_CSZ_PORT MOTOR_CS_PORT
+#endif
+#if defined(MOTOR_CSM3_PIN) & !defined(MOTOR_CSM3_PORT)
+#define MOTOR_CSM3_PORT MOTOR_CS_PORT
+#endif
+#if defined(MOTOR_CSM4_PIN) & !defined(MOTOR_CSM4_PORT)
+#define MOTOR_CSM4_PORT MOTOR_CS_PORT
+#endif
+#if defined(MOTOR_CSM5_PIN) & !defined(MOTOR_CSM5_PORT)
+#define MOTOR_CSM5_PORT MOTOR_CS_PORT
+#endif
+#endif
+
 typedef struct {
     LPC_GPIO_T *port;
     uint32_t pin;

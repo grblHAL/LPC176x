@@ -32,20 +32,14 @@
 #define TRINAMIC_MOSI_BIT (1<<TRINAMIC_MOSI_PIN)
 #define TRINAMIC_MISO_BIT (1<<TRINAMIC_MISO_PIN)
 #define TRINAMIC_SCK_BIT (1<<TRINAMIC_SCK_PIN)
-#define TRINAMIC_CSX_BIT (1<<TRINAMIC_CSX_PIN)
-#define TRINAMIC_CSY_BIT (1<<TRINAMIC_CSY_PIN)
-#define TRINAMIC_CSZ_BIT (1<<TRINAMIC_CSZ_PIN)
-#ifdef A_AXIS
-#define TRINAMIC_CSA_BIT (1<<TRINAMIC_CSA_PIN)
-#endif
-#ifdef B_AXIS
-#define TRINAMIC_CSB_BIT (1<<TRINAMIC_CSB_PIN)
-#endif
 
 #define spi_get_byte() sw_spi_xfer(0)
 #define spi_put_byte(d) sw_spi_xfer(d)
 
-static uint32_t cs_bit[N_AXIS];
+static struct {
+    LPC_GPIO_T *port;
+    uint32_t bit;
+} cs[TMC_N_MOTORS_MAX];
 
 inline static void delay (void)
 {
@@ -79,7 +73,7 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
 {
     TMC_spi_status_t status;
 
-    TRINAMIC_CS_PORT->CLR = cs_bit[driver.axis];
+    cs[driver.id].port->CLR = cs[driver.id].bit;
 
     datagram->payload.value = 0;
 
@@ -90,9 +84,9 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
     spi_put_byte(0);
     spi_put_byte(0);
 
-    TRINAMIC_CS_PORT->SET = cs_bit[driver.axis];
+    cs[driver.id].port->SET = cs[driver.id].bit;
     delay();
-    TRINAMIC_CS_PORT->CLR = cs_bit[driver.axis];
+    cs[driver.id].port->CLR = cs[driver.id].bit;
 
     status = spi_put_byte(datagram->addr.value);
     datagram->payload.data[3] = spi_get_byte();
@@ -100,7 +94,7 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
     datagram->payload.data[1] = spi_get_byte();
     datagram->payload.data[0] = spi_get_byte();
 
-    TRINAMIC_CS_PORT->SET = cs_bit[driver.axis];
+    cs[driver.id].port->SET = cs[driver.id].bit;
 
     return status;
 }
@@ -109,7 +103,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
 {
     TMC_spi_status_t status;
 
-    TRINAMIC_CS_PORT->CLR = cs_bit[driver.axis];
+    cs[driver.id].port->CLR = cs[driver.id].bit;
 
     datagram->addr.write = 1;
     status = spi_put_byte(datagram->addr.value);
@@ -118,62 +112,84 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
     spi_put_byte(datagram->payload.data[1]);
     spi_put_byte(datagram->payload.data[0]);
 
-    TRINAMIC_CS_PORT->SET = cs_bit[driver.axis];
+    cs[driver.id].port->SET = cs[driver.id].bit;
 
     return status;
 }
 
 #endif
 
+static void add_cs_pin (xbar_t *pin)
+{
+    if(pin->group == PinGroup_MotorChipSelect) {
+        switch(pin->function) {
+
+            case Output_MotorChipSelectX:
+                cs[X_AXIS].bit = pin->bit;
+                cs[X_AXIS].port = (LPC_GPIO_T *)pin->port;
+                break;
+            case Output_MotorChipSelectY:
+                cs[Y_AXIS].bit = pin->bit;
+                cs[Y_AXIS].port = (LPC_GPIO_T *)pin->port;
+                break;
+            case Output_MotorChipSelectZ:
+                cs[Z_AXIS].bit = pin->bit;
+                cs[Z_AXIS].port = (LPC_GPIO_T *)pin->port;
+                break;
+            case Output_MotorChipSelectM3:
+                cs[3].bit = pin->bit;
+                cs[3].port = (LPC_GPIO_T *)pin->port;
+                break;
+            case Output_MotorChipSelectM4:
+                cs[4].bit = pin->bit;
+                cs[5].port = (LPC_GPIO_T *)pin->port;
+                break;
+            case Output_MotorChipSelectM5:
+                cs[5].bit = pin->bit;
+                cs[5].port = (LPC_GPIO_T *)pin->port;
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
+static void if_init (axes_signals_t enabled)
+{
+    static bool init_ok = false;
+
+    if(!init_ok) {
+
+        init_ok = true;
+
+        Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MOSI_PN, TRINAMIC_MOSI_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
+        Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MISO_PN, TRINAMIC_MISO_PIN, IOCON_MODE_PULLUP, IOCON_FUNC0);
+        Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_SCK_PN, TRINAMIC_SCK_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
+
+        Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MOSI_PN, TRINAMIC_MOSI_PIN);
+        Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MISO_PN, TRINAMIC_MOSI_PIN);
+        Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_SCK_PN, TRINAMIC_MOSI_PIN);
+
+        TRINAMIC_MOSI_PORT->DIR |= TRINAMIC_MOSI_BIT;
+        TRINAMIC_MISO_PORT->DIR &= ~TRINAMIC_MISO_BIT;
+
+        TRINAMIC_SCK_PORT->DIR |= TRINAMIC_SCK_BIT;
+        TRINAMIC_SCK_PORT->SET = TRINAMIC_SCK_BIT;
+
+        hal.enumerate_pins(true, add_cs_pin);
+    }
+}
+
 void board_init (void)
 {
 #if TRINAMIC_ENABLE == 2130 || TRINAMIC_ENABLE == 5160
 
-    Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MOSI_PN, TRINAMIC_MOSI_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-    Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MISO_PN, TRINAMIC_MISO_PIN, IOCON_MODE_PULLUP, IOCON_FUNC0);
-    Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_SCK_PN, TRINAMIC_SCK_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-    Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSX_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-    Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSY_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-    Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSZ_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
+    static trinamic_driver_if_t driver_if = {
+        .on_drivers_init = if_init
+    };
 
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MOSI_PN, TRINAMIC_MOSI_PIN);
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_MISO_PN, TRINAMIC_MOSI_PIN);
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_SCK_PN, TRINAMIC_MOSI_PIN);
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSX_PIN);
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSY_PIN);
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSZ_PIN);
-
-    TRINAMIC_MOSI_PORT->DIR |= TRINAMIC_MOSI_BIT;
-    TRINAMIC_MISO_PORT->DIR &= ~TRINAMIC_MISO_BIT;
-
-    TRINAMIC_SCK_PORT->DIR |= TRINAMIC_SCK_BIT;
-    TRINAMIC_SCK_PORT->SET = TRINAMIC_SCK_BIT;
-
-    cs_bit[X_AXIS] = TRINAMIC_CSX_BIT;
-    TRINAMIC_CS_PORT->DIR |= TRINAMIC_CSX_BIT;
-    TRINAMIC_CS_PORT->SET = TRINAMIC_CSX_BIT;
-
-    cs_bit[Y_AXIS] = TRINAMIC_CSY_BIT;
-    TRINAMIC_CS_PORT->DIR |= TRINAMIC_CSY_BIT;
-    TRINAMIC_CS_PORT->SET = TRINAMIC_CSY_BIT;
-
-    cs_bit[Z_AXIS] = TRINAMIC_CSZ_BIT;
-    TRINAMIC_CS_PORT->DIR |= TRINAMIC_CSZ_BIT;
-    TRINAMIC_CS_PORT->SET = TRINAMIC_CSZ_BIT;
-
-#ifdef A_AXIS
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSA_PIN);
-    cs_bit[A_AXIS] = TRINAMIC_CSA_PIN;
-    TRINAMIC_CS_PORT->DIR |= TRINAMIC_CSA_BIT;
-    TRINAMIC_CS_PORT->SET = TRINAMIC_CSA_BIT;
-#endif
-#ifdef B_AXIS
-    Chip_IOCON_DisableOD((LPC_IOCON_T *)LPC_IOCON_BASE, TRINAMIC_CS_PN, TRINAMIC_CSB_PIN);
-    cs_bit[B_AXIS] = TRINAMIC_CSB_PIN;
-    TRINAMIC_CS_PORT->DIR |= TRINAMIC_CSB_BIT;
-    TRINAMIC_CS_PORT->SET = TRINAMIC_CSB_BIT;
-#endif
-
+    trinamic_if_init(&driver_if);
 #endif
 }
 

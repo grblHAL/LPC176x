@@ -218,16 +218,16 @@ void board_init (void);
 #define TRINAMIC_SCK_PORT   port(TRINAMIC_SCK_PN)
 #define TRINAMIC_SCK_PIN    4
 
-#define TRINAMIC_CS_PN 1
-#define TRINAMIC_CS_PORT   port(TRINAMIC_CS_PN)
-#define TRINAMIC_CSX_PIN   17
-#define TRINAMIC_CSY_PIN   15
-#define TRINAMIC_CSZ_PIN   10
-#ifdef A_AXIS
-#define TRINAMIC_CSA_PIN   8
+#define MOTOR_CS_PN 1
+#define MOTOR_CS_PORT       port(MOTOR_CS_PN)
+#define MOTOR_CSX_PIN       17
+#define MOTOR_CSY_PIN       15
+#define MOTOR_CSZ_PIN       10
+#ifdef M3_AVAILABLE
+#define MOTOR_CSM3_PIN      8
 #endif
-#ifdef B_AXIS
-#define TRINAMIC_CSB_PIN   1
+#ifdef M4_AVAILABLE
+#define MOTOR_CSM4_PIN      1
 #endif
 
 #endif

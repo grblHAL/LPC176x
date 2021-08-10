@@ -223,6 +223,27 @@ static output_signal_t outputpin[] = {
     { .id = Output_StepperEnableZ,  .port = Z2_ENABLE_PORT,         .pin = Z2_ENABLE_PIN,           .group = PinGroup_StepperEnable },
 #endif
 #endif
+#ifdef MOTOR_CS_PIN
+    { .id = Output_MotorChipSelect,     .port = MOTOR_CS_PORT,      .pin = MOTOR_CS_PIN,            .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSX_PIN
+    { .id = Output_MotorChipSelectX,    .port = MOTOR_CSX_PORT,     .pin = MOTOR_CSX_PIN,           .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSY_PIN
+    { .id = Output_MotorChipSelectY,    .port = MOTOR_CSY_PORT,     .pin = MOTOR_CSY_PIN,           .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSZ_PIN
+    { .id = Output_MotorChipSelectZ,    .port = MOTOR_CSZ_PORT,     .pin = MOTOR_CSZ_PIN,           .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSM3_PIN
+    { .id = Output_MotorChipSelectM3,   .port = MOTOR_CSM3_PORT,    .pin = MOTOR_CSM3_PIN,          .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSM4_PIN
+    { .id = Output_MotorChipSelectM4,   .port = MOTOR_CSM4_PORT,    .pin = MOTOR_CSM4_PIN,          .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSM5_PIN
+    { .id = Output_MotorChipSelectM5,   .port = MOTOR_CSM5_PORT,    .pin = MOTOR_CSM5_PIN,          .group = PinGroup_MotorChipSelect },
+#endif
 #if !VFD_SPINDLE
 #ifdef SPINDLE_ENABLE_PIN
     { .id = Output_SpindleOn,       .port = SPINDLE_ENABLE_PORT,    .pin = SPINDLE_ENABLE_PIN,      .group = PinGroup_SpindleControl },
@@ -560,11 +581,23 @@ inline static limit_signals_t limitsGetState()
     signals.min.x = DIGITAL_IN(X_LIMIT_PORT, X_LIMIT_BIT);
     signals.min.y = DIGITAL_IN(Y_LIMIT_PORT, Y_LIMIT_BIT);
     signals.min.z = DIGITAL_IN(Z_LIMIT_PORT, Z_LIMIT_BIT);
+  #ifdef A_LIMIT_PIN
+    signals.min.a = DIGITAL_IN(A_LIMIT_PORT, A_LIMIT_BIT);
+  #endif
+  #ifdef B_LIMIT_PIN
+    signals.min.b = DIGITAL_IN(B_LIMIT_PORT, B_LIMIT_BIT);
+  #endif
 #else
     uint32_t bits = LIMIT_PORT->PIN;
     signals.min.x = (bits & X_LIMIT_BIT) != 0;
     signals.min.y = (bits & Y_LIMIT_BIT) != 0;
     signals.min.z = (bits & Z_LIMIT_BIT) != 0;
+  #ifdef A_LIMIT_PIN
+    signals.min.a = (bits & A_LIMIT_BIT) != 0;
+  #endif
+  #ifdef B_LIMIT_PIN
+    signals.min.b = (bits & B_LIMIT_BIT) != 0;
+  #endif
 #endif
 
 #ifdef X2_LIMIT_PIN
@@ -1091,6 +1124,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
 
     for(i = 0; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
         pin.pin = inputpin[i].pin;
+        pin.bit = inputpin[i].bit;
         pin.function = inputpin[i].id;
         pin.group = inputpin[i].group;
         pin.port = low_level ? (void *)inputpin[i].port : (void *)port2char(inputpin[i].port);
@@ -1105,6 +1139,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
 
     for(i = 0; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
         pin.pin = outputpin[i].pin;
+        pin.bit = outputpin[i].bit;
         pin.function = outputpin[i].id;
         pin.group = outputpin[i].group;
         pin.port = low_level ? (void *)outputpin[i].port : (void *)port2char(outputpin[i].port);
@@ -1124,10 +1159,13 @@ static bool driver_setup (settings_t *settings)
     uint32_t i;
     for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
         outputpin[i].bit = 1U << outputpin[i].pin;
-        // Cleanup after (potential) sloppy bootloader
+        // Cleanup after (potentially) sloppy bootloader
         Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, gpio_to_pn(outputpin[i].port), outputpin[i].pin, IOCON_MODE_INACT, IOCON_FUNC0);
         //
         outputpin[i].port->DIR |= outputpin[i].bit;
+
+        if(outputpin[i].group == PinGroup_MotorChipSelect)
+            outputpin[i].port->SET = outputpin[i].bit;
     }
 
     // Stepper init
@@ -1219,7 +1257,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "210805";
+    hal.driver_version = "210809";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

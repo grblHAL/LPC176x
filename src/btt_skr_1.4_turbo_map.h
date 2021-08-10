@@ -120,8 +120,8 @@ void board_init (void);
 #define M4_DIRECTION_PN     1
 #define M4_DIRECTION_PORT   port(M4_DIRECTION_PN)
 #define M4_DIRECTION_PIN    14
-#define M3_LIMIT_PORT       port(LIMIT_PN)
-#define M3_LIMIT_PIN        25
+#define M4_LIMIT_PORT       port(LIMIT_PN)
+#define M4_LIMIT_PIN        25
 #define M4_ENABLE_PN        1
 #define M4_ENABLE_PORT      port(M4_ENABLE_PN)
 #define M4_ENABLE_PIN       16
@@ -201,16 +201,16 @@ void board_init (void);
 #define TRINAMIC_SCK_PORT   port(TRINAMIC_SCK_PN)
 #define TRINAMIC_SCK_PIN    4
 
-#define TRINAMIC_CS_PN     1
-#define TRINAMIC_CS_PORT   port(TRINAMIC_CS_PN)
-#define TRINAMIC_CSX_PIN   10
-#define TRINAMIC_CSY_PIN   9
-#define TRINAMIC_CSZ_PIN   8
-#ifdef A_AXIS
-#define TRINAMIC_CSA_PIN   4
+#define MOTOR_CS_PN         1
+#define MOTOR_CS_PORT       port(MOTOR_CS_PN)
+#define MOTOR_CSX_PIN       10
+#define MOTOR_CSY_PIN       9
+#define MOTOR_CSZ_PIN       8
+#ifdef M3_AVAILABLE
+#define MOTOR_CSM3_PIN      4
 #endif
-#ifdef B_AXIS
-#define TRINAMIC_CSB_PIN   1
+#ifdef M4_AVAILABLE
+#define MOTOR_CSM4_PIN      1
 #endif
 
 #endif
