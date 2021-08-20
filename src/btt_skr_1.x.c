@@ -119,34 +119,34 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
 
 #endif
 
-static void add_cs_pin (xbar_t *pin)
+static void add_cs_pin (xbar_t *gpio)
 {
-    if(pin->group == PinGroup_MotorChipSelect) {
-        switch(pin->function) {
+    if(gpio->group == PinGroup_MotorChipSelect) {
+        switch(gpio->function) {
 
             case Output_MotorChipSelectX:
-                cs[X_AXIS].bit = pin->bit;
-                cs[X_AXIS].port = (LPC_GPIO_T *)pin->port;
+                cs[X_AXIS].bit = gpio->bit;
+                cs[X_AXIS].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectY:
-                cs[Y_AXIS].bit = pin->bit;
-                cs[Y_AXIS].port = (LPC_GPIO_T *)pin->port;
+                cs[Y_AXIS].bit = gpio->bit;
+                cs[Y_AXIS].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectZ:
-                cs[Z_AXIS].bit = pin->bit;
-                cs[Z_AXIS].port = (LPC_GPIO_T *)pin->port;
+                cs[Z_AXIS].bit = gpio->bit;
+                cs[Z_AXIS].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM3:
-                cs[3].bit = pin->bit;
-                cs[3].port = (LPC_GPIO_T *)pin->port;
+                cs[3].bit = gpio->bit;
+                cs[3].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM4:
-                cs[4].bit = pin->bit;
-                cs[5].port = (LPC_GPIO_T *)pin->port;
+                cs[4].bit = gpio->bit;
+                cs[4].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM5:
-                cs[5].bit = pin->bit;
-                cs[5].port = (LPC_GPIO_T *)pin->port;
+                cs[5].bit = gpio->bit;
+                cs[5].port = (LPC_GPIO_T *)gpio->port;
                 break;
 
             default:
@@ -155,9 +155,11 @@ static void add_cs_pin (xbar_t *pin)
     }
 }
 
-static void if_init (axes_signals_t enabled)
+static void if_init (uint8_t motors, axes_signals_t enabled)
 {
     static bool init_ok = false;
+
+    UNUSED(motors);
 
     if(!init_ok) {
 

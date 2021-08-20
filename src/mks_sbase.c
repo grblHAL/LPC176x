@@ -33,10 +33,10 @@
 
 typedef struct {
     float current; // mA
-} motor_settings_t;
+} mks_motor_settings_t;
 
 typedef struct {
-    motor_settings_t driver[N_AXIS];
+    mks_motor_settings_t driver[N_AXIS];
 } mks_settings_t;
 
 static mks_settings_t mks;

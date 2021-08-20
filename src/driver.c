@@ -30,6 +30,7 @@
 
 #include "grbl/limits.h"
 #include "grbl/motor_pins.h"
+#include "grbl/pin_bits_masks.h"
 
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"
@@ -73,7 +74,9 @@ typedef struct {
     input_signal_t *signal[DEBOUNCE_QUEUE];
 } debounce_queue_t;
 
+#ifdef LIMITS_POLL_PORT
 static bool limits_debounce = false;
+#endif
 static uint32_t limits_invert;
 static volatile uint32_t elapsed_tics = 0;
 static debounce_queue_t debounce_queue = {0};
@@ -1215,7 +1218,11 @@ static bool driver_setup (settings_t *settings)
 
  // Set defaults
 
+#if N_AXIS > 3
+    IOInitDone = settings->version == 20;
+#else
     IOInitDone = settings->version == 19;
+#endif
 
     hal.settings_changed(settings);
     hal.spindle.set_state((spindle_state_t){0}, 0.0f);
@@ -1257,7 +1264,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "210809";
+    hal.driver_version = "210817";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

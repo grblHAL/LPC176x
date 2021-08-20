@@ -31,7 +31,7 @@
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
-#define USB_SERIAL_CDC     1 // for Arduino class library and 2 for PJRC C library. Comment out to use UART communication.
+#define USB_SERIAL_CDC     1 // Comment out to use UART communication.
 //#define SDCARD_ENABLE      1 // Run gcode programs from SD card, requires sdcard plugin.
 //#define TRINAMIC_ENABLE 2130 // Uncomment to enable Trinamic TMC2130 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
 //#define TRINAMIC_ENABLE 5160 // Uncomment to enable Trinamic TMC5160 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
