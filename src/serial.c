@@ -209,6 +209,11 @@ static bool serialSetBaudRate (uint32_t baud_rate)
     return true;
 }
 
+static bool serialEnqueueRtCommand (char c)
+{
+    return enqueue_realtime_command(c);
+}
+
 static enqueue_realtime_command_ptr serialSetRtHandler (enqueue_realtime_command_ptr handler)
 {
     enqueue_realtime_command_ptr prev = enqueue_realtime_command;
@@ -228,6 +233,7 @@ const io_stream_t *serialInit (void)
         .write = serialWriteS,
         .write_char = serialPutC,
         .write_all = serialWriteS,
+        .enqueue_rt_command = serialEnqueueRtCommand,
         .get_rx_buffer_free = serialRxFree,
         .reset_read_buffer = serialRxFlush,
         .cancel_read_buffer = serialRxCancel,
