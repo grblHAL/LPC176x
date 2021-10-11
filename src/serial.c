@@ -152,27 +152,18 @@ static void serialWriteS (const char *s)
     while((c = *ptr++) != '\0')
         serialPutC(c);
 }
-/*
-//
-// Writes a null terminated string to the serial output stream followed by EOL, blocks if buffer full
-//
-static void serialWriteLn (const char *s)
-{
-    serialWriteS(s);
-    serialWriteS(ASCII_EOL);
-}
 
 //
 // Writes a number of characters from string to the serial output stream followed by EOL, blocks if buffer full
 //
-static void serialWrite(const char *s, uint16_t length)
+static void serialWrite (const char *s, uint16_t length)
 {
     char *ptr = (char *)s;
 
     while(length--)
         serialPutC(*ptr++);
 }
-*/
+
 //
 // serialGetC - returns -1 if no data available
 //
@@ -232,6 +223,7 @@ const io_stream_t *serialInit (void)
         .read = serialGetC,
         .write = serialWriteS,
         .write_char = serialPutC,
+        .write_n = serialWrite,
         .write_all = serialWriteS,
         .enqueue_rt_command = serialEnqueueRtCommand,
         .get_rx_buffer_free = serialRxFree,

@@ -117,7 +117,6 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
     return status;
 }
 
-#endif
 
 static void add_cs_pin (xbar_t *gpio)
 {
@@ -182,6 +181,8 @@ static void if_init (uint8_t motors, axes_signals_t enabled)
         hal.enumerate_pins(true, add_cs_pin);
     }
 }
+
+#endif
 
 void board_init (void)
 {
