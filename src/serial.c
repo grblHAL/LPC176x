@@ -254,6 +254,25 @@ const io_stream_t *serialInit (void)
     NVIC_SetPriority(SERIAL_MODULE_INT, 3);
     NVIC_EnableIRQ(SERIAL_MODULE_INT);
 
+    static const periph_pin_t tx = {
+        .function = Output_TX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO0,
+        .pin = 2,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
+
+    static const periph_pin_t rx = {
+        .function = Input_RX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO0,
+        .pin = 3,
+        .mode = { .mask = PINMODE_NONE }
+    };
+
+    hal.periph_port.register_pin(&rx);
+    hal.periph_port.register_pin(&tx);
+
 #ifdef RTS_PORT
     RTS_PORT->DIR |= RTS_BIT;
     BITBAND_PERI(RTS_PORT->OUT, RTS_PIN) = 0;

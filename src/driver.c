@@ -22,6 +22,7 @@
 */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "driver.h"
@@ -81,6 +82,8 @@ static uint32_t limits_invert;
 static volatile uint32_t elapsed_tics = 0;
 static debounce_queue_t debounce_queue = {0};
 static input_signal_t gpio0_signals[10] = {0}, gpio1_signals[10] = {0}, gpio2_signals[10] = {0};
+
+static periph_signal_t *periph_pins = NULL;
 
 static input_signal_t inputpin[] = {
   #ifdef PROBE_PIN
@@ -1150,6 +1153,54 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
 
         pin_info(&pin);
     };
+
+    periph_signal_t *ppin = periph_pins;
+
+    if(ppin) do {
+        pin.pin = ppin->pin.pin;
+        pin.function = ppin->pin.function;
+        pin.group = ppin->pin.group;
+        pin.port = low_level ? ppin->pin.port : (void *)port2char(ppin->pin.port);
+        pin.mode = ppin->pin.mode;
+        pin.description = ppin->pin.description;
+
+        pin_info(&pin);
+
+        ppin = ppin->next;
+    } while(ppin);
+}
+
+void registerPeriphPin (const periph_pin_t *pin)
+{
+    periph_signal_t *add_pin = malloc(sizeof(periph_signal_t));
+
+    if(!add_pin)
+        return;
+
+    memcpy(&add_pin->pin, pin, sizeof(periph_pin_t));
+    add_pin->next = NULL;
+
+    if(periph_pins == NULL) {
+        periph_pins = add_pin;
+    } else {
+        periph_signal_t *last = periph_pins;
+        while(last->next)
+            last = last->next;
+        last->next = add_pin;
+    }
+}
+
+void setPeriphPinDescription (const pin_function_t function, const pin_group_t group, const char *description)
+{
+    periph_signal_t *ppin = periph_pins;
+
+    if(ppin) do {
+        if(ppin->pin.function == function && ppin->pin.group == group) {
+            ppin->pin.description = description;
+            ppin = NULL;
+        } else
+            ppin = ppin->next;
+    } while(ppin);
 }
 
 // Initializes MCU peripherals for Grbl use
@@ -1259,12 +1310,8 @@ bool driver_init (void) {
     SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk|SysTick_CTRL_TICKINT_Msk|SysTick_CTRL_ENABLE_Msk;
     NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
 
-#if I2C_ENABLE
-    i2c_init();
-#endif
-
     hal.info = "LCP1769";
-    hal.driver_version = "211002";
+    hal.driver_version = "211108";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1305,10 +1352,24 @@ bool driver_init (void) {
 
     hal.control.get_state = systemGetState;
 
+    hal.irq_enable = __enable_irq;
+    hal.irq_disable = __disable_irq;
+    hal.set_bits_atomic = bitsSetAtomic;
+    hal.clear_bits_atomic = bitsClearAtomic;
+    hal.set_value_atomic = valueSetAtomic;
+    hal.get_elapsed_ticks = getElapsedTicks;
+    hal.enumerate_pins = enumeratePins;
+    hal.periph_port.register_pin = registerPeriphPin;
+    hal.periph_port.set_pin_description = setPeriphPinDescription;
+
 #if USB_SERIAL_CDC
     memcpy(&hal.stream, usbInit(), sizeof(io_stream_t));
 #else
     memcpy(&hal.stream, serialInit(), sizeof(io_stream_t));
+#endif
+
+#if I2C_ENABLE
+    i2c_init();
 #endif
 
 #if EEPROM_ENABLE
@@ -1320,14 +1381,6 @@ bool driver_init (void) {
 #else
     hal.nvs.type = NVS_None;
 #endif
-
-    hal.irq_enable = __enable_irq;
-    hal.irq_disable = __disable_irq;
-    hal.set_bits_atomic = bitsSetAtomic;
-    hal.clear_bits_atomic = bitsClearAtomic;
-    hal.set_value_atomic = valueSetAtomic;
-    hal.get_elapsed_ticks = getElapsedTicks;
-    hal.enumerate_pins = enumeratePins;
 
 #ifdef HAS_KEYPAD
     hal.execute_realtime = process_keypress;

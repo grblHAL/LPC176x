@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for NXP LPC176x
 
-  Copyright (c) 2019-2020 Terje Io
+  Copyright (c) 2019-2021 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,17 +41,52 @@ void i2c_init (void)
     Chip_IOCON_PinMux(LPC_IOCON, 0, 20, IOCON_MODE_INACT, IOCON_FUNC3);
     Chip_IOCON_EnableOD(LPC_IOCON, 0, 19);
     Chip_IOCON_EnableOD(LPC_IOCON, 0, 20);
+
+    static const periph_pin_t scl = {
+        .function = Output_SCK,
+        .group = PinGroup_I2C,
+        .port = LPC_GPIO0,
+        .pin = 20,
+//        .mode = { .mask = PINMODE_OD }
+    };
+
+    static const periph_pin_t sda = {
+        .function = Bidirectional_SDA,
+        .group = PinGroup_I2C,
+        .port = LPC_GPIO0,
+        .pin = 19,
+        //        .mode = { .mask = PINMODE_OD }
+    };
 #else
     Chip_IOCON_PinMux(LPC_IOCON, 0, 0, IOCON_MODE_INACT, IOCON_FUNC3);
     Chip_IOCON_PinMux(LPC_IOCON, 0, 1, IOCON_MODE_INACT, IOCON_FUNC3);
     Chip_IOCON_EnableOD(LPC_IOCON, 0, 0);
     Chip_IOCON_EnableOD(LPC_IOCON, 0, 1);
+
+    static const periph_pin_t scl = {
+        .function = Output_SCK,
+        .group = PinGroup_I2C,
+        .port = LPC_GPIO0,
+        .pin = 1,
+        //        .mode = { .mask = PINMODE_OD }
+    };
+
+    static const periph_pin_t sda = {
+        .function = Bidirectional_SDA,
+        .group = PinGroup_I2C,
+        .port = LPC_GPIO0,
+        .pin = 0,
+        //        .mode = { .mask = PINMODE_OD }
+    };
 #endif
 
     Chip_I2C_Init(I2C1);
     Chip_I2C_SetClockRate(I2C1, 100000);
 
     Chip_I2C_SetMasterEventHandler(I2C1, Chip_I2C_EventHandlerPolling);
+
+    hal.periph_port.register_pin(&scl);
+    hal.periph_port.register_pin(&sda);
 }
 
 #endif
