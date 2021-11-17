@@ -181,6 +181,7 @@ typedef struct {
     uint32_t bit;
     pin_function_t id;
     pin_group_t group;
+    pin_mode_t mode;
     const char *description;
 } output_signal_t;
 
