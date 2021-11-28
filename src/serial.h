@@ -37,6 +37,7 @@
 #define RTS_PIN  4
 #define RTS_BIT (1<<RTS_PIN)
 
-const io_stream_t *serialInit(void);
+const io_stream_t *serialInit(uint32_t baud_rate);
+void serialRegisterStreams (void);
 
 /*EOF*/

@@ -250,6 +250,24 @@ static output_signal_t outputpin[] = {
 #ifdef MOTOR_CSM5_PIN
     { .id = Output_MotorChipSelectM5,   .port = MOTOR_CSM5_PORT,    .pin = MOTOR_CSM5_PIN,          .group = PinGroup_MotorChipSelect },
 #endif
+#ifdef MOTOR_UARTX_PIN
+    { .id = Bidirectional_MotorUARTX,   .port = MOTOR_UARTX_PORT,   .pin = MOTOR_UARTX_PIN,         .group = PinGroup_MotorUART },
+#endif
+#ifdef MOTOR_UARTY_PIN
+    { .id = Bidirectional_MotorUARTY,   .port = MOTOR_UARTY_PORT,   .pin = MOTOR_UARTY_PIN,         .group = PinGroup_MotorUART },
+#endif
+#ifdef MOTOR_UARTZ_PIN
+    { .id = Bidirectional_MotorUARTZ,   .port = MOTOR_UARTZ_PORT,   .pin = MOTOR_UARTZ_PIN,         .group = PinGroup_MotorUART },
+#endif
+#ifdef MOTOR_UARTM3_PIN
+    { .id = Bidirectional_MotorUARTM3,  .port = MOTOR_UARTM3_PORT,  .pin = MOTOR_UARTM3_PIN,        .group = PinGroup_MotorUART },
+#endif
+#ifdef MOTOR_UARTM4_PIN
+    { .id = Bidirectional_MotorUARTM4,  .port = MOTOR_UARTM4_PORT,  .pin = MOTOR_UARTM4_PIN,        .group = PinGroup_MotorUART },
+#endif
+#ifdef MOTOR_UARTM5_PIN
+    { .id = Bidirectional_MotorUARTM5,  .port = MOTOR_UARTM5_PORT,  .pin = MOTOR_UARTM5_PIN,        .group = PinGroup_MotorUART },
+#endif
 #if !VFD_SPINDLE
 #ifdef SPINDLE_ENABLE_PIN
     { .id = Output_SpindleOn,       .port = SPINDLE_ENABLE_PORT,    .pin = SPINDLE_ENABLE_PIN,      .group = PinGroup_SpindleControl },
@@ -1347,7 +1365,7 @@ bool driver_init (void) {
     NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
 
     hal.info = "LCP1769";
-    hal.driver_version = "211121";
+    hal.driver_version = "211126";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1404,7 +1422,7 @@ bool driver_init (void) {
 #if USB_SERIAL_CDC
     memcpy(&hal.stream, usbInit(), sizeof(io_stream_t));
 #else
-    memcpy(&hal.stream, serialInit(), sizeof(io_stream_t));
+    memcpy(&hal.stream, serialInit(115200), sizeof(io_stream_t));
 #endif
 
 #if I2C_ENABLE
@@ -1488,6 +1506,8 @@ bool driver_init (void) {
 #ifdef HAS_BOARD_INIT
     board_init();
 #endif
+
+serialRegisterStreams();
 
 #include "grbl/plugins_init.h"
 

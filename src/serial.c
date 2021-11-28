@@ -44,14 +44,36 @@ static const PINMUX_GRP_T uart_pinmux[] = {
 };
 
 #ifdef RTS_PORT
-  static volatile uint8_t rts_state = 0;
+static volatile uint8_t rts_state = 0;
 #endif
 
 #ifdef ENABLE_XONXOFF
-  static volatile uint8_t flow_ctrl = XON_SENT; // Flow control state variable
+static volatile uint8_t flow_ctrl = XON_SENT; // Flow control state variable
 #endif
 
-  /*
+static io_stream_properties_t serial[] = {
+    {
+      .type = StreamType_Serial,
+      .instance = 0,
+      .flags.claimable = On,
+      .flags.claimed = Off,
+      .flags.connected = On,
+      .flags.can_set_baud = On,
+      .claim = serialInit
+    }
+};
+
+void serialRegisterStreams (void)
+{
+    static io_stream_details_t streams = {
+        .n_streams = sizeof(serial) / sizeof(io_stream_properties_t),
+        .streams = serial,
+    };
+
+    stream_register_streams(&streams);
+}
+
+/*
 //
 // Returns number of characters in serial output buffer
 //
@@ -215,7 +237,7 @@ static enqueue_realtime_command_ptr serialSetRtHandler (enqueue_realtime_command
     return prev;
 }
 
-const io_stream_t *serialInit (void)
+const io_stream_t *serialInit (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
         .type = StreamType_Serial,
@@ -234,11 +256,16 @@ const io_stream_t *serialInit (void)
         .set_enqueue_rt_handler = serialSetRtHandler
     };
 
+    if(serial[0].flags.claimed)
+        return NULL;
+
+    serial[0].flags.claimed = On;
+
     Chip_IOCON_SetPinMuxing(LPC_IOCON, uart_pinmux, sizeof(uart_pinmux) / sizeof(PINMUX_GRP_T));
 
     /* Setup UART for 115.2K8N1 */
     Chip_UART_Init(SERIAL_MODULE);
-    Chip_UART_SetBaud(SERIAL_MODULE, 115200);
+    Chip_UART_SetBaud(SERIAL_MODULE, baud_rate);
     Chip_UART_ConfigData(SERIAL_MODULE, (UART_LCR_WLEN8|UART_LCR_SBS_1BIT));
     Chip_UART_SetupFIFOS(SERIAL_MODULE, (UART_FCR_FIFO_EN|UART_FCR_TRG_LEV2));
     Chip_UART_TXEnable(SERIAL_MODULE);
