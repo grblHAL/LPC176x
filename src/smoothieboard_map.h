@@ -29,6 +29,9 @@
 
 #define BOARD_NAME "Smoothieboard"
 
+//#define HAS_BOARD_INIT    // Remove comments to enable driver
+//#define I2C_ENABLE 2      // current control
+
 // Define step pulse output pins.
 
 #define STEP_PN                 2
@@ -128,5 +131,7 @@
 #define SD_CS_PN                0
 #define SD_CS_PORT              port(SD_CS_PN)
 #define SD_CS_PIN               6
+
+#define MCP44XX_I2C_ADDR        0b0101100
 
 /**/

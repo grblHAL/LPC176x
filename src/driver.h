@@ -202,6 +202,10 @@ void ioports_init (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
 void ioports_event (input_signal_t *input);
 #endif
 
+#ifdef HAS_BOARD_INIT
+    void board_init (void);
+#endif
+
 #ifdef SD_CS_PIN
 #define SD_CS_BIT (1<<SD_CS_PIN)
 #endif

@@ -21,7 +21,7 @@
 
 #include "driver.h"
 
-#ifdef BOARD_MKS_SBASE_13
+#if defined(HAS_BOARD_INIT) && (defined(BOARD_MKS_SBASE_13) || defined(SMOOTHIEBOARD))
 
 #include <math.h>
 #include <string.h>
@@ -56,18 +56,13 @@ static void mks_settings_save (void)
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&mks, sizeof(mks_settings_t), true);
 }
 
-static setting_details_t details = {
+static setting_details_t setting_details = {
     .settings = mks_settings,
     .n_settings = sizeof(mks_settings) / sizeof(setting_detail_t),
     .load = mks_settings_load,
     .save = mks_settings_save,
     .restore = mks_settings_restore
 };
-
-static setting_details_t *on_get_settings (void)
-{
-    return &details;
-}
 
 static void mks_set_current (uint_fast8_t axis, float current)
 {
@@ -151,11 +146,8 @@ static void mks_settings_load (void)
 
 void board_init (void)
 {
-    if((nvs_address = nvs_alloc(sizeof(mks_settings_t)))) {
-
-        details.on_get_settings = grbl.on_get_settings;
-        grbl.on_get_settings = on_get_settings;
-    }
+    if((nvs_address = nvs_alloc(sizeof(mks_settings_t))))
+        settings_register(&setting_details);
 }
 
 #endif
