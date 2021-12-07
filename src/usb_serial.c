@@ -327,6 +327,7 @@ const io_stream_t *usbInit (void)
         /* Init VCOM interface */
         if (vcom_init(g_hUsb, &desc, &usb_param) == LPC_OK) {
             /*  enable USB interrupts */
+            NVIC_SetPriority(USB_IRQn, 1);
             NVIC_EnableIRQ(USB_IRQn);
             /* now connect */
             USBD_API->hw->Connect(g_hUsb, 1);

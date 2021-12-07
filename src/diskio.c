@@ -119,6 +119,7 @@ BYTE rcvr_spi (void)
     Chip_SSP_SendFrame(LPC_SD_PORT, 0xFF);
 
     while(Chip_SSP_GetStatus(LPC_SD_PORT, SSP_STAT_BSY));
+    while(!Chip_SSP_GetStatus(LPC_SD_PORT, SSP_STAT_RNE));
 
     return Chip_SSP_ReceiveFrame(LPC_SD_PORT);
 }

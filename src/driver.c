@@ -1303,7 +1303,7 @@ static bool driver_setup (settings_t *settings)
     NVIC_EnableIRQ(PULSE_TIMER_INT0);     // Enable step pulse interrupt
 
     NVIC_SetPriority(PULSE_TIMER_INT0, 0);
-    NVIC_SetPriority(STEPPER_TIMER_INT0, 2);
+    NVIC_SetPriority(STEPPER_TIMER_INT0, 0);
 
  // Limit pins init
 
@@ -1365,7 +1365,7 @@ bool driver_init (void) {
     NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
 
     hal.info = "LCP1769";
-    hal.driver_version = "211203";
+    hal.driver_version = "211205";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
