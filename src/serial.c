@@ -246,7 +246,6 @@ const io_stream_t *serialInit (uint32_t baud_rate)
         .write = serialWriteS,
         .write_char = serialPutC,
         .write_n = serialWrite,
-        .write_all = serialWriteS,
         .enqueue_rt_command = serialEnqueueRtCommand,
         .get_rx_buffer_free = serialRxFree,
         .reset_read_buffer = serialRxFlush,

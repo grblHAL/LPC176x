@@ -81,6 +81,8 @@
   #include "btt_skr_1.3_map.h"
 #elif defined(BOARD_BTT_SKR_14_TURBO)
   #include "btt_skr_1.4_turbo_map.h"
+#elif defined BOARD_BTT_SKR_E3_TURBO
+  #include "btt_skr_e3_turbo_map.h"
 #elif defined(BOARD_MKS_SBASE_13)
   #include "mks_sbase_map.h"
 #elif defined(BOARD_MY_MACHINE)

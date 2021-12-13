@@ -1276,7 +1276,7 @@ static bool driver_setup (settings_t *settings)
         //
         outputpin[i].port->DIR |= outputpin[i].bit;
 
-        if(outputpin[i].group == PinGroup_MotorChipSelect)
+        if(outputpin[i].group == PinGroup_MotorChipSelect || outputpin[i].group == PinGroup_MotorUART)
             outputpin[i].port->SET = outputpin[i].bit;
     }
 
@@ -1365,7 +1365,7 @@ bool driver_init (void) {
     NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
 
     hal.info = "LCP1769";
-    hal.driver_version = "211205";
+    hal.driver_version = "211221";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1420,9 +1420,9 @@ bool driver_init (void) {
     hal.periph_port.set_pin_description = setPeriphPinDescription;
 
 #if USB_SERIAL_CDC
-    memcpy(&hal.stream, usbInit(), sizeof(io_stream_t));
+    stream_connect(usbInit());
 #else
-    memcpy(&hal.stream, serialInit(115200), sizeof(io_stream_t));
+    stream_connect(serialInit(115200));
 #endif
 
 #if I2C_ENABLE
