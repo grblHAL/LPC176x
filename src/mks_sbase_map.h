@@ -30,6 +30,7 @@
 #define BOARD_NAME "MKS SBASE V1.3"
 
 #define HAS_BOARD_INIT // comment out to disable driver current control
+#undef I2C_ENABLE
 #define I2C_ENABLE 2
 
 void board_init (void);

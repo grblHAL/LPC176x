@@ -110,12 +110,6 @@
 #define FLASH_ENABLE 0
 #endif
 
-#if EEPROM_ENABLE
-#define I2C_ENABLE 1
-#elif !defined(I2C_ENABLE)
-#define I2C_ENABLE 0
-#endif
-
 #ifndef SDCARD_ENABLE
 #define SDCARD_ENABLE 0
 #endif

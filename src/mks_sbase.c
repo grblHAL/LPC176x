@@ -1,5 +1,5 @@
 /*
-  mks_sbase.c - driver code for LPC176x processor, MKS SBASE V1.3 board
+  mks_sbase.c - driver code for LPC176x processor, MKS SBASE V1.3 and SMOOTHIEBOARD
 
   Part of grblHAL
 
@@ -66,16 +66,14 @@ static setting_details_t setting_details = {
 
 static void mks_set_current (uint_fast8_t axis, float current)
 {
-    static const uint8_t wiper_registers[] = {0x00, 0x01, 0x06, 0x07};
-
-    //TODO: add support for B axis?
+    static const uint8_t wiper_registers[] = {0x00, 0x01, 0x06, 0x07, 0x00};
 
     uint8_t cmd[2];
 
     cmd[0] = wiper_registers[axis] << 4;
     cmd[1] = (uint8_t)min(255.0f, roundf(current * 100.85f));
 
-    i2c_write(MCP44XX_I2C_ADDR, cmd, sizeof(cmd));
+    i2c_write(MCP44XX_I2C_ADDR | (axis > 3 ? 0b01 : 0b00), cmd, sizeof(cmd));
 }
 
 // Parse and set driver specific parameters

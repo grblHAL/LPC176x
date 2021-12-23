@@ -29,8 +29,9 @@
 
 #define BOARD_NAME "Smoothieboard"
 
-//#define HAS_BOARD_INIT    // Remove comments to enable driver
-//#define I2C_ENABLE 2      // current control
+#define HAS_BOARD_INIT    // Remove comments to enable driver
+#undef I2C_ENABLE
+#define I2C_ENABLE 2      // current control
 
 // Define step pulse output pins.
 

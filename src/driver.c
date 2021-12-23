@@ -842,11 +842,9 @@ static spindle_state_t spindleGetState (void)
 {
     spindle_state_t state = {settings.spindle.invert.mask};
 
-    state.on = (SPINDLE_ENABLE_PORT->PIN & SPINDLE_ENABLE_BIT) != 0;
-    state.ccw = hal.driver_cap.spindle_dir && (SPINDLE_DIRECTION_PORT->PIN & SPINDLE_DIRECTION_BIT) != 0;
+    state.on = DIGITAL_IN(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT);
+    state.ccw = hal.driver_cap.spindle_dir && DIGITAL_IN(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT);
     state.value ^= settings.spindle.invert.mask;
-    if(pwmEnabled)
-        state.value = On;
 
     return state;
 }
@@ -872,7 +870,7 @@ static coolant_state_t coolantGetState (void)
 
     state.flood = DIGITAL_IN(COOLANT_FLOOD_PORT, COOLANT_FLOOD_BIT);
 #ifdef COOLANT_MIST_PORT
-    state.mist  = DIGITAL_IN(COOLANT_MIST_PORT, COOLANT_MIST_BIT);;
+    state.mist  = DIGITAL_IN(COOLANT_MIST_PORT, COOLANT_MIST_BIT);
 #endif
     state.value ^= settings.coolant_invert.mask;
 
@@ -1365,7 +1363,7 @@ bool driver_init (void) {
     NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
 
     hal.info = "LCP1769";
-    hal.driver_version = "211221";
+    hal.driver_version = "211222";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1448,8 +1446,10 @@ bool driver_init (void) {
 #ifdef SAFETY_DOOR_PIN
     hal.signals_cap.safety_door_ajar = On;
 #endif
-    hal.driver_cap.spindle_dir = On;
     hal.driver_cap.variable_spindle = On;
+#ifdef SPINDLE_DIRECTION_PIN
+    hal.driver_cap.spindle_dir = On;
+#endif
 #ifdef COOLANT_MIST_PORT
     hal.driver_cap.mist_control = On;
 #endif
