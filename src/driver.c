@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "grbl/limits.h"
 #include "grbl/motor_pins.h"
 #include "grbl/pin_bits_masks.h"
+#include "grbl/state_machine.h"
 
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"
@@ -306,13 +307,15 @@ static void spindle_set_speed (uint_fast16_t pwm_value);
 
 uint32_t cpt;
 
-static void driver_delay (uint32_t ms, void (*callback)(void))
+static void driver_delay (uint32_t ms, delay_callback_ptr callback)
 {
     if((delay.ms = ms) > 0) {
         SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
         SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
-        if(!(delay.callback = callback))
-            while(delay.ms);
+        if(!(delay.callback = callback)) {
+            while(delay.ms)
+                grbl.on_execute_delay(state_get());
+        }
     } else if(callback)
         callback();
 }
@@ -1328,8 +1331,12 @@ static bool driver_setup (settings_t *settings)
     IOInitDone = settings->version == 21;
 
     hal.settings_changed(settings);
-    hal.spindle.set_state((spindle_state_t){0}, 0.0f);
+
+    if(hal.spindle.set_state)
+        hal.spindle.set_state((spindle_state_t){0}, 0.0f);
+
     hal.coolant.set_state((coolant_state_t){0});
+
     stepperSetDirOutputs((axes_signals_t){0});
 
 #if SDCARD_ENABLE
@@ -1363,7 +1370,7 @@ bool driver_init (void) {
     NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
 
     hal.info = "LCP1769";
-    hal.driver_version = "211222";
+    hal.driver_version = "220111";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1385,7 +1392,6 @@ bool driver_init (void) {
 #ifdef SQUARING_ENABLED
     hal.stepper.disable_motors = StepperDisableMotors;
 #endif
-
 
     hal.limits.enable = limitsEnable;
     hal.limits.get_state = limitsGetState;
@@ -1465,22 +1471,20 @@ bool driver_init (void) {
 
     uint32_t i;
     input_signal_t *input;
-
-#ifdef HAS_IOPORTS
+    output_signal_t *output;
     static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0};
-#endif
 
     for(i = 0 ; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
         input = &inputpin[i];
-#ifdef HAS_IOPORTS
+
         if(input->group == PinGroup_AuxInput) {
             if(aux_inputs.pins.inputs == NULL)
                 aux_inputs.pins.inputs = input;
-            aux_inputs.n_pins++;
+            input->id = (pin_function_t)(Input_Aux0 + aux_inputs.n_pins++);
             input->cap.pull_mode = PullMode_UpDown;
             input->cap.irq_mode = input->port == LPC_GPIO0 || input->port == LPC_GPIO2 ? IRQ_Mode_Edges : IRQ_Mode_None;
         }
-#endif
+
         if(input->group == PinGroup_Limit) {
             if(limit_inputs.pins.inputs == NULL)
                 limit_inputs.pins.inputs = input;
@@ -1488,19 +1492,17 @@ bool driver_init (void) {
         }
     }
 
-#ifdef HAS_IOPORTS
-    output_signal_t *output;
     for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
         output = &outputpin[i];
         if(output->group == PinGroup_AuxOutput) {
             if(aux_outputs.pins.outputs == NULL)
                 aux_outputs.pins.outputs = output;
-            aux_outputs.n_pins++;
+            output->id = (pin_function_t)(Output_Aux0 + aux_outputs.n_pins++);
         }
     }
 
+#ifdef HAS_IOPORTS
     ioports_init(&aux_inputs, &aux_outputs);
-
 #endif
 
 #ifdef HAS_BOARD_INIT
