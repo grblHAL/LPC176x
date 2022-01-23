@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 
 #define BOARD_NAME "BTT SKR V1.4 Turbo"
 
-#if TRINAMIC_ENABLE == 2130 || TRINAMIC_ENABLE == 5160
+#if TRINAMIC_ENABLE == 2130 || TRINAMIC_ENABLE == 2209 || TRINAMIC_ENABLE == 5160
 #define HAS_BOARD_INIT
 void board_init (void);
 #endif
@@ -169,7 +169,7 @@ void board_init (void);
 #define SD_CS_PIN               6
 #endif
 
-#if TRINAMIC_ENABLE == 2130 || TRINAMIC_ENABLE == 5160
+#if TRINAMIC_SPI_ENABLE
 
 #define TRINAMIC_MOSI_PN        1
 #define TRINAMIC_MOSI_PORT      port(TRINAMIC_MOSI_PN)
@@ -193,7 +193,28 @@ void board_init (void);
 #define MOTOR_CSM4_PIN          1
 #endif
 
+#elif TRINAMIC_UART_ENABLE
+
+#define MOTOR_UARTX_PN          1
+#define MOTOR_UARTX_PORT        port(MOTOR_UARTX_PN)
+#define MOTOR_UARTX_PIN         10
+#define MOTOR_UARTY_PN          1
+#define MOTOR_UARTY_PORT        port(MOTOR_UARTY_PN)
+#define MOTOR_UARTY_PIN         9
+#define MOTOR_UARTZ_PN          1
+#define MOTOR_UARTZ_PORT        port(MOTOR_UARTZ_PN)
+#define MOTOR_UARTZ_PIN         8
+#ifdef M3_AVAILABLE
+#define MOTOR_UARTM3_PN         1
+#define MOTOR_UARTM3_PORT       port(MOTOR_UARTM3_PN)
+#define MOTOR_UARTM3_PIN        4
+#endif
+#ifdef M4_AVAILABLE
+#define MOTOR_UARTM4_PN         1
+#define MOTOR_UARTM4_PORT       port(MOTOR_UARTM4_PN)
+#define MOTOR_UARTM4_PIN        1
 #endif
 
+#endif
 
 /**/

@@ -187,4 +187,13 @@ void board_init (void);
 
 #define MCP44XX_I2C_ADDR        0b0101100
 
+#define I2C_STROBE_PN         2
+#define I2C_STROBE_PORT       port(I2C_STROBE_PN)
+#define I2C_STROBE_PIN        7    // E1 MOSFET (P2.7)
+
+#define MPG_MODE_PN         2
+#define MPG_MODE_PORT       port(MPG_MODE_PN)
+#define MPG_MODE_PIN        7    // E1 MOSFET (P2.7)
+
+
 /**/
