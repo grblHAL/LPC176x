@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -103,6 +103,14 @@
 #endif
 
 // End configuration
+
+#if MPG_MODE && !USB_SERIAL_CDC
+#error "MPG_MODE can only be enabled with USB_SERIAL_CDC enabled!"
+#endif
+
+#if MPG_MODE == 1 && !defined(MPG_MODE_PIN)
+#error "MPG_MODE_PIN must be defined!"
+#endif
 
 #if EEPROM_ENABLE == 0
 #define FLASH_ENABLE 1

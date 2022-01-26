@@ -37,6 +37,7 @@
 #endif
 //#define SAFETY_DOOR_ENABLE 1 // Enable safety door input.
 //#define SDCARD_ENABLE      1 // Run gcode programs from SD card, requires sdcard plugin.
+//#define MPG_ENABLE         1 // Enable MPG interface. Requires serial port and one handshake pin.
 //#define TRINAMIC_ENABLE 2130 // Uncomment to enable Trinamic TMC2130 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
 //#define TRINAMIC_ENABLE 2209 // Uncomment to enable Trinamic TMC5160 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
 //#define TRINAMIC_ENABLE 5160 // Uncomment to enable Trinamic TMC5160 driver support. NOTE: Experimental for now, currently for SKR E3 Turbo board only

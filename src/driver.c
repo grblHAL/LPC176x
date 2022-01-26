@@ -936,15 +936,17 @@ static uint_fast16_t valueSetAtomic (volatile uint_fast16_t *ptr, uint_fast16_t 
 
 static void mpg_select (sys_state_t state)
 {
-    stream_mpg_enable(DIGITAL_IN(MPG_MODE_PORT, MPG_MODE_PIN) == 0);
+    stream_mpg_enable(DIGITAL_IN(mpg_pin->port, mpg_pin->bit) == 0);
 
-    gpio_int_enable(mpg_pin, (mpg_pin->irq_mode = sys.mpg_mode ? IRQ_Mode_Rising : IRQ_Mode_Falling));
+    gpio_int_enable(mpg_pin, mpg_pin->irq_mode = (sys.mpg_mode ? IRQ_Mode_Rising : IRQ_Mode_Falling));
 }
 
 static void mpg_enable (sys_state_t state)
 {
-    if(sys.mpg_mode == DIGITAL_IN(MPG_MODE_PORT, MPG_MODE_PIN))
+    if(sys.mpg_mode == DIGITAL_IN(mpg_pin->port, mpg_pin->bit))
         stream_mpg_enable(true);
+
+    gpio_int_enable(mpg_pin, mpg_pin->irq_mode = (sys.mpg_mode ? IRQ_Mode_Rising : IRQ_Mode_Falling));
 }
 
 #endif
@@ -1080,6 +1082,7 @@ void settings_changed (settings_t *settings)
             if(input->port != NULL) {
 
                 input->bit = 1U << input->pin;
+                input->debounce = true;
 
                 switch(input->id) {
 
@@ -1106,6 +1109,7 @@ void settings_changed (settings_t *settings)
                     case Input_Probe:
                         pullup = hal.driver_cap.probe_pull_up;
                         input->irq_mode = IRQ_Mode_None;
+                        input->debounce = false;
                         break;
 
                     case Input_LimitX:
@@ -1163,11 +1167,13 @@ void settings_changed (settings_t *settings)
                         pullup = true;
                         mpg_pin = input;
                         input->irq_mode = IRQ_Mode_Change;
+                        input->debounce = false;
                         break;
 #endif
                     case Input_I2CStrobe:
                         pullup = true;
                         input->irq_mode = IRQ_Mode_Change; // -> any edge?
+                        input->debounce = false;
                         break;
 
                     default:
@@ -1178,6 +1184,7 @@ void settings_changed (settings_t *settings)
 
                 if(input->group == PinGroup_AuxInput) {
                     pullup = true;
+                    input->debounce = false;
                     input->cap.pull_mode = (PullMode_Up|PullMode_Down);
                     input->cap.irq_mode = input->port == LPC_GPIO0 || input->port == LPC_GPIO2 ? (IRQ_Mode_Rising|IRQ_Mode_Falling|IRQ_Mode_Change) : IRQ_Mode_None;
                 }
@@ -1198,8 +1205,6 @@ void settings_changed (settings_t *settings)
                 }
 
                 if(input->irq_mode != IRQ_Mode_None || input->group == PinGroup_AuxInput) {
-
-                    input->debounce = hal.driver_cap.software_debounce && !(input->group == PinGroup_Probe || input->group == PinGroup_Keypad || input->group == PinGroup_AuxInput);
 
                     if(input->port == LPC_GPIO0) {
                         gpio_int_enable(input, input->irq_mode);
@@ -1425,7 +1430,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "220111";
+    hal.driver_version = "220126";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

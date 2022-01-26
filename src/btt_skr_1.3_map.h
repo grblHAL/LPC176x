@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -170,6 +170,12 @@ void board_init (void);
 #define CYCLE_START_PIN         15
 
 #define CONTROL_INMODE          GPIO_BITBAND
+
+#if MPG_ENABLE
+#define MPG_MODE_PN             2
+#define MPG_MODE_PORT           port(MPG_MODE_PN)
+#define MPG_MODE_PIN            0
+#endif
 
 #ifdef SPINDLE_PWM_PIN_2_4
 #define SPINDLE_PWM_CHANNEL         PWM1_CH5    // MOSFET3 (P2.4)

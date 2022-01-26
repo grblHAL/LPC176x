@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2017-2021 Terje Io
+  Copyright (c) 2017-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -73,14 +73,13 @@ void serialRegisterStreams (void)
     stream_register_streams(&streams);
 }
 
-/*
 //
 // Returns number of characters in serial output buffer
 //
 static uint16_t serialTxCount (void)
 {
   uint16_t tail = txbuf.tail;
-  return BUFCOUNT(txbuf.head, tail, TX_BUFFER_SIZE);
+  return BUFCOUNT(txbuf.head, tail, TX_BUFFER_SIZE); // TODO: add number of characters in TX FIFO
 }
 
 //
@@ -91,7 +90,6 @@ static uint16_t serialRxCount (void)
   uint16_t tail = rxbuf.tail, head = rxbuf.head;
   return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
-*/
 
 //
 // Returns number of free characters in serial input buffer
@@ -222,6 +220,16 @@ static bool serialSetBaudRate (uint32_t baud_rate)
     return true;
 }
 
+static bool serialDisable (bool disable)
+{
+    if(disable)
+        Chip_UART_IntDisable(SERIAL_MODULE, UART_IER_RBRINT);
+    else
+        Chip_UART_IntEnable(SERIAL_MODULE, UART_IER_RBRINT);
+
+    return true;
+}
+
 static bool serialEnqueueRtCommand (char c)
 {
     return enqueue_realtime_command(c);
@@ -248,9 +256,12 @@ const io_stream_t *serialInit (uint32_t baud_rate)
         .write_n = serialWrite,
         .enqueue_rt_command = serialEnqueueRtCommand,
         .get_rx_buffer_free = serialRxFree,
+        .get_rx_buffer_count = serialRxCount,
+        .get_tx_buffer_count = serialTxCount,
         .reset_read_buffer = serialRxFlush,
         .cancel_read_buffer = serialRxCancel,
         .suspend_read = serialSuspendInput,
+        .disable_rx = serialDisable,
         .set_baud_rate = serialSetBaudRate,
         .set_enqueue_rt_handler = serialSetRtHandler
     };
