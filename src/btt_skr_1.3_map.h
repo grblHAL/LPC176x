@@ -29,7 +29,7 @@
 
 #define BOARD_NAME "BTT SKR V1.3"
 
-#if TRINAMIC_ENABLE == 2130 || TRINAMIC_ENABLE == 5160
+#if TRINAMIC_ENABLE
 #define HAS_BOARD_INIT
 void board_init (void);
 #endif
@@ -192,7 +192,30 @@ void board_init (void);
 #define SD_CS_PIN   6
 #endif
 
-#if TRINAMIC_ENABLE == 2130 || TRINAMIC_ENABLE == 5160
+#if TRINAMIC_UART_ENABLE
+
+#define MOTOR_UARTX_PN          1
+#define MOTOR_UARTX_PORT        port(MOTOR_UARTX_PN)
+#define MOTOR_UARTX_PIN         17
+#define MOTOR_UARTY_PN          1
+#define MOTOR_UARTY_PORT        port(MOTOR_UARTY_PN)
+#define MOTOR_UARTY_PIN         15
+#define MOTOR_UARTZ_PN          1
+#define MOTOR_UARTZ_PORT        port(MOTOR_UARTZ_PN)
+#define MOTOR_UARTZ_PIN         10
+#ifdef M3_AVAILABLE
+#define MOTOR_UARTM3_PN         1
+#define MOTOR_UARTM3_PORT       port(MOTOR_UARTM3_PN)
+#define MOTOR_UARTM3_PIN        8
+#endif
+#ifdef M4_AVAILABLE
+#define MOTOR_UARTM4_PN         1
+#define MOTOR_UARTM4_PORT       port(MOTOR_UARTM4_PN)
+#define MOTOR_UARTM4_PIN        1
+#endif
+
+
+#elif TRINAMIC_SPI_ENABLE
 
 #define TRINAMIC_MOSI_PN        4
 #define TRINAMIC_MOSI_PORT      port(TRINAMIC_MOSI_PN)
