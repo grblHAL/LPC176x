@@ -1430,7 +1430,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "220126";
+    hal.driver_version = "220216";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1575,13 +1575,19 @@ bool driver_init (void) {
 serialRegisterStreams();
 
 #if MPG_MODE == 1
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(serialInit(115200), false, NULL)))
+  #if KEYPAD_ENABLE == 2
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, keypad_enqueue_keycode)))
         protocol_enqueue_rt_command(mpg_enable);
+  #else
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, NULL)))
+        protocol_enqueue_rt_command(mpg_enable);
+  #endif
 #elif MPG_MODE == 2
-    hal.driver_cap.mpg_mode = stream_mpg_register(serialInit(115200), false, keypad_enqueue_keycode);
-#elif KEYPAD_ENABLE == 2
-    stream_open_instance(0, 115200, keypad_enqueue_keycode);
+    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, keypad_enqueue_keycode);
+//#elif KEYPAD_ENABLE == 2
+//    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode);
 #endif
+
 
 #include "grbl/plugins_init.h"
 
