@@ -81,7 +81,7 @@ typedef struct {
 } debounce_queue_t;
 
 #ifdef LIMITS_POLL_PORT
-static bool limits_debounce = false;
+static bool limits_debounce = false, limits_poll = false;
 #endif
 static uint32_t limits_invert;
 static volatile uint32_t elapsed_tics = 0;
@@ -639,7 +639,9 @@ static void stepperPulseStartDelayed (stepper_t *stepper)
 // Enable/disable limit pins interrupt
 static void limitsEnable (bool on, bool homing)
 {
-#ifndef LIMITS_POLL_PORT
+#ifdef LIMITS_POLL_PORT
+    limits_poll = on & settings.limits.flags.hard_enabled;
+#else
     uint32_t i = limit_inputs.n_pins;
 
     on &= settings.limits.flags.hard_enabled;
@@ -1430,7 +1432,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "220216";
+    hal.driver_version = "220302";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1489,7 +1491,7 @@ bool driver_init (void) {
 #if USB_SERIAL_CDC
     stream_connect(usbInit());
 #else
-    stream_connect(serialInit(115200));
+    stream_connect(serialInit(BAUD_RATE));
 #endif
 
 #if I2C_ENABLE
@@ -1802,7 +1804,7 @@ void SysTick_Handler (void)
 
 #ifdef LIMITS_POLL_PORT // Poll limit pins when hard limits enabled
     static uint32_t limits_state = 0, limits = 0;
-    if(settings.limits.flags.hard_enabled) {
+    if(limits_poll) {
         limits = (LIMITS_POLL_PORT->PIN ^ limits_invert) & LIMIT_MASK;
         if(limits_state && limits == 0 && !limits_debounce)
             limits_state = 0;
