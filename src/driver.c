@@ -794,11 +794,12 @@ inline static void spindle_on (void)
     DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT, !settings.spindle.invert.on);
 }
 
+#ifdef SPINDLE_DIRECTION_PIN
 inline static void spindle_dir (bool ccw)
 {
-    if(hal.driver_cap.spindle_dir)
-        DIGITAL_OUT(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT, ccw ^ settings.spindle.invert.ccw);
+    DIGITAL_OUT(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT, ccw ^ settings.spindle.invert.ccw);
 }
+#endif
 
 // Start or stop spindle
 static void spindleSetState (spindle_state_t state, float rpm)
@@ -806,7 +807,9 @@ static void spindleSetState (spindle_state_t state, float rpm)
     if (!state.on)
         spindle_off();
     else {
+#ifdef SPINDLE_DIRECTION_PIN
         spindle_dir(state.ccw);
+#endif
         spindle_on();
     }
 }
@@ -836,21 +839,10 @@ static void spindle_set_speed (uint_fast16_t pwm_value)
     }
 }
 
-#ifdef SPINDLE_PWM_DIRECT
-
 static uint_fast16_t spindleGetPWM (float rpm)
 {
     return spindle_compute_pwm_value(&spindle_pwm, rpm, false);
 }
-
-#else
-
-static void spindleUpdateRPM (float rpm)
-{
-    spindle_set_speed(spindle_compute_pwm_value(&spindle_pwm, rpm, false));
-}
-
-#endif
 
 // Start or stop spindle
 static void spindleSetStateVariable (spindle_state_t state, float rpm)
@@ -859,9 +851,9 @@ static void spindleSetStateVariable (spindle_state_t state, float rpm)
         spindle_set_speed(spindle_pwm.off_value);
         spindle_off();
     } else {
-        if(hal.driver_cap.spindle_dir)
-            spindle_dir(state.ccw);
-
+#ifdef SPINDLE_DIRECTION_PIN
+        spindle_dir(state.ccw);
+#endif
         spindle_set_speed(spindle_compute_pwm_value(&spindle_pwm, rpm, false));
     }
 }
@@ -872,7 +864,9 @@ static spindle_state_t spindleGetState (void)
     spindle_state_t state = {settings.spindle.invert.mask};
 
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT);
-    state.ccw = hal.driver_cap.spindle_dir && DIGITAL_IN(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT);
+#ifdef SPINDLE_DIRECTION_PIN
+    state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT);
+#endif
     state.value ^= settings.spindle.invert.mask;
 
     return state;
@@ -1016,7 +1010,7 @@ uint32_t getElapsedTicks (void)
 // Configures peripherals when settings are initialized or changed
 void settings_changed (settings_t *settings)
 {
-    hal.driver_cap.variable_spindle = spindle_precompute_pwm_values(&spindle_pwm, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1));
+    hal.spindle.cap.variable = spindle_precompute_pwm_values(&spindle_pwm, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1));
 
 #if USE_STEPDIR_MAP
     stepdirmap_init (settings);
@@ -1030,7 +1024,7 @@ void settings_changed (settings_t *settings)
         hal.stepper.disable_motors((axes_signals_t){0}, SquaringMode_Both);
 #endif
 
-        if(hal.driver_cap.variable_spindle) {
+        if(hal.spindle.cap.variable) {
             pwm_init(&SPINDLE_PWM_CHANNEL, SPINDLE_PWM_USE_PRIMARY_PIN, SPINDLE_PWM_USE_SECONDARY_PIN, spindle_pwm.period, 0);
             hal.spindle.set_state = spindleSetStateVariable;
         } else
@@ -1432,7 +1426,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "220302";
+    hal.driver_version = "220325";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1466,12 +1460,13 @@ bool driver_init (void) {
 
     hal.spindle.set_state = spindleSetState;
     hal.spindle.get_state = spindleGetState;
-#ifdef SPINDLE_PWM_DIRECT
     hal.spindle.get_pwm = spindleGetPWM;
     hal.spindle.update_pwm = spindle_set_speed;
-#else
-    hal.spindle.update_rpm = spindleUpdateRPM;
+#ifdef SPINDLE_DIRECTION_PIN
+    hal.spindle.cap.direction = On;
 #endif
+    hal.spindle.cap.variable = On;
+    hal.spindle.cap.laser = On;
 
     hal.control.get_state = systemGetState;
 
@@ -1516,10 +1511,6 @@ bool driver_init (void) {
 
 #ifdef SAFETY_DOOR_PIN
     hal.signals_cap.safety_door_ajar = On;
-#endif
-    hal.driver_cap.variable_spindle = On;
-#ifdef SPINDLE_DIRECTION_PIN
-    hal.driver_cap.spindle_dir = On;
 #endif
 #ifdef COOLANT_MIST_PORT
     hal.driver_cap.mist_control = On;
