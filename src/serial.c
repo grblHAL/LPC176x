@@ -33,15 +33,35 @@
 
 #include "chip.h"
 
-static stream_rx_buffer_t rxbuf = {0};
-static stream_tx_buffer_t txbuf = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
+#if SERIAL_MOD == 3
+
+#define SERIAL_IRQHandler UART3_IRQHandler
+#define SERIAL_MODULE     LPC_UART3
+#define SERIAL_MODULE_INT UART3_IRQn
+
+/* Pin muxing configuration */
+static const PINMUX_GRP_T uart_pinmux[] = {
+    {4, 28, IOCON_MODE_INACT | IOCON_FUNC3}, /* TXD3 */
+    {4, 29, IOCON_MODE_INACT | IOCON_FUNC3}  /* RXD3 */
+};
+
+#else
+
+#define SERIAL_IRQHandler UART0_IRQHandler
+#define SERIAL_MODULE     LPC_UART0
+#define SERIAL_MODULE_INT UART0_IRQn
 
 /* Pin muxing configuration */
 static const PINMUX_GRP_T uart_pinmux[] = {
     {0, 2, IOCON_MODE_INACT | IOCON_FUNC1}, /* TXD0 */
     {0, 3, IOCON_MODE_INACT | IOCON_FUNC1}  /* RXD0 */
 };
+
+#endif
+
+static stream_rx_buffer_t rxbuf = {0};
+static stream_tx_buffer_t txbuf = {0};
+static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
 
 #ifdef RTS_PORT
 static volatile uint8_t rts_state = 0;
@@ -291,6 +311,26 @@ const io_stream_t *serialInit (uint32_t baud_rate)
     NVIC_SetPriority(SERIAL_MODULE_INT, 3);
     NVIC_EnableIRQ(SERIAL_MODULE_INT);
 
+#if SERIAL_MOD == 3
+
+    static const periph_pin_t tx = {
+        .function = Output_TX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO4,
+        .pin = 28,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
+
+    static const periph_pin_t rx = {
+        .function = Input_RX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO4,
+        .pin = 29,
+        .mode = { .mask = PINMODE_NONE }
+    };
+
+#else
+
     static const periph_pin_t tx = {
         .function = Output_TX,
         .group = PinGroup_UART,
@@ -306,6 +346,8 @@ const io_stream_t *serialInit (uint32_t baud_rate)
         .pin = 3,
         .mode = { .mask = PINMODE_NONE }
     };
+
+#endif
 
     hal.periph_port.register_pin(&rx);
     hal.periph_port.register_pin(&tx);

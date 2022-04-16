@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2021 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Mappings according to Re-ARM for NXP LCP1768
 
@@ -113,6 +113,11 @@
 #define M3_ENABLE_PN            0
 #define M3_ENABLE_PORT          port(M3_ENABLE_PN)
 #define M3_ENABLE_PIN           4   // Due Digital Pin 24
+#if !LIMIT_MAX_ENABLE
+#define M3_LIMIT_PN             1
+#define M3_LIMIT_PORT           port(M3_LIMIT_PN)
+#define M3_LIMIT_PIN            25  // Due Digital Pin 2
+#endif
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
@@ -127,6 +132,11 @@
 #define M4_ENABLE_PN            4
 #define M4_ENABLE_PORT          port(M4_ENABLE_PN)
 #define M4_ENABLE_PIN           29  // Due Digital Pin 30
+#if !LIMIT_MAX_ENABLE
+#define M4_LIMIT_PN             1
+#define M4_LIMIT_PORT           port(M4_LIMIT_PN)
+#define M4_LIMIT_PIN            27  // Due Digital Pin 15
+#endif
 #endif
 
 // Define probe switch input pin.

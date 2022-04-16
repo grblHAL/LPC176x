@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -89,17 +89,5 @@
 #define DEBOUNCE_TIMER_INT0 timerINT0(DEBOUNCE_TIM)
 #define DEBOUNCE_TIMER_PCLK timerPCLK(DEBOUNCE_TIM)
 #define DEBOUNCE_IRQHandler timerISR(DEBOUNCE_TIM)
-
-// Define serial port pins and module
-
-#define SERIAL_MOD A0
-//#define SERIAL_MODULE eusci(SERIAL_MOD)
-//#define SERIAL_MODULE_INT eusciINT(SERIAL_MOD)
-#define SERIAL_PORT P1
-#define SERIAL_RX BIT2
-#define SERIAL_TX BIT3
-#define SERIAL_RTS_PORT P1
-#define SERIAL_RTS_PIN 4
-#define SERIAL_RTS_BIT (1<<SERIAL_RTS_PIN)
 
 // EOF

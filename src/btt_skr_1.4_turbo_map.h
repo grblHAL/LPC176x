@@ -38,6 +38,10 @@ void board_init (void);
 #error "This board cannot be used with current EEPROM code!"
 #endif
 
+#if USB_SERIAL_CDC == 0
+#define SERIAL_MOD 3    // WiFi port
+#endif
+
 // Define step pulse output pins.
 #define X_STEP_PN               2
 #define X_STEP_PORT             port(X_STEP_PN)
