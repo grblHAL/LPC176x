@@ -1022,8 +1022,6 @@ void settings_changed (settings_t *settings)
 
     if(IOInitDone) {
 
-        stepperEnable(settings->steppers.deenergize);
-
 #ifdef SQUARING_ENABLED
         hal.stepper.disable_motors((axes_signals_t){0}, SquaringMode_Both);
 #endif
@@ -1435,7 +1433,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "220703";
+    hal.driver_version = "220710";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
