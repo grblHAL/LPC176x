@@ -1035,7 +1035,7 @@ void settings_changed (settings_t *settings)
             hal.spindle.set_state = spindleSetState;
         }
 
-        spindle_update_caps(hal.spindle.cap.variable);
+        spindle_update_caps(hal.spindle.cap.variable ? &spindle_pwm : NULL);
 
         int32_t t = (uint32_t)(12.0f * (settings->steppers.pulse_microseconds - STEP_PULSE_LATENCY)) - 1;
         pulse_length = t < 2 ? 2 : t;
@@ -1433,7 +1433,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "220907";
+    hal.driver_version = "220922";
     hal.driver_setup = driver_setup;
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -1464,16 +1464,6 @@ bool driver_init (void) {
 
     hal.probe.get_state = probeGetState;
     hal.probe.configure = probeConfigure;
-
-    hal.spindle.set_state = spindleSetState;
-    hal.spindle.get_state = spindleGetState;
-    hal.spindle.get_pwm = spindleGetPWM;
-    hal.spindle.update_pwm = spindle_set_speed;
-#ifdef SPINDLE_DIRECTION_PIN
-    hal.spindle.cap.direction = On;
-#endif
-    hal.spindle.cap.variable = On;
-    hal.spindle.cap.laser = On;
 
     hal.control.get_state = systemGetState;
 
@@ -1573,6 +1563,22 @@ bool driver_init (void) {
 #endif
 
 serialRegisterStreams();
+
+static const spindle_ptrs_t spindle = {
+#ifdef SPINDLE_DIRECTION_PIN
+    .cap.direction = On,
+#endif
+    .cap.laser = On,
+    .cap.variable = On,
+    .cap.pwm_invert = On,
+    .get_pwm = spindleGetPWM,
+    .update_pwm = spindle_set_speed,
+//    .config = spindleConfig,
+    .set_state = spindleSetState,
+    .get_state = spindleGetState
+};
+
+spindle_register(&spindle, "PWM");
 
 #if MPG_MODE == 1
   #if KEYPAD_ENABLE == 2
