@@ -39,7 +39,7 @@
 //#define SDCARD_ENABLE      1 // Run gcode programs from SD card, requires sdcard plugin.
 //#define MPG_ENABLE         1 // Enable MPG interface. Requires serial port and one handshake pin.
 //#define TRINAMIC_ENABLE 2130 // Uncomment to enable Trinamic TMC2130 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
-//#define TRINAMIC_ENABLE 2209 // Uncomment to enable Trinamic TMC5160 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
+//#define TRINAMIC_ENABLE 2209 // Uncomment to enable Trinamic TMC2209 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
 //#define TRINAMIC_ENABLE 5160 // Uncomment to enable Trinamic TMC5160 driver support. NOTE: Experimental for now, currently for SKR E3 Turbo board only
 //#define LIMIT_MAX_ENABLE   1 // Uncomment to enable max limit input pins (when available)
 //#define EEPROM_ENABLE      1 // I2C EEPROM support. Set to 1 for 24LC16(2K), 2 (64 byte pages) or 3 (32 byte pages) for larger sizes. Requires eeprom plugin.

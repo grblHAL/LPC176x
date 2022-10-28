@@ -314,7 +314,7 @@ void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
  * Returns the next byte from the receive buffer or -1 on underflow.
  */
 
-static void add_uart_pin (xbar_t *gpio)
+static void add_uart_pin (xbar_t *gpio, void *data)
 {
     if (gpio->group == PinGroup_MotorUART)
       switch (gpio->function) {
@@ -372,7 +372,7 @@ static void if_init (uint8_t motors, axes_signals_t enabled)
         NVIC_EnableIRQ(SUART_TIMER_INT0);       // Enable software UART interrupt
         NVIC_SetPriority(SUART_TIMER_INT0, 1);  // Same with stepper timer - no idea why
 
-        hal.enumerate_pins(true, add_uart_pin);
+        hal.enumerate_pins(true, add_uart_pin, NULL);
     }
 }
 
