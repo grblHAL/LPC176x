@@ -38,6 +38,10 @@ void board_init (void);
 #error "This board cannot be used with current EEPROM code!"
 #endif
 
+// Define if the output pins are used. 
+// P0 = 1.18(EXP1), P1 = 1.20(EXP1), P2 = 1.22(EXP1)
+#define HAS_IOPORTS
+
 #if USB_SERIAL_CDC == 0
 #define SERIAL_MOD 3    // WiFi port
 #endif
@@ -218,6 +222,20 @@ void board_init (void);
 #define MOTOR_UARTM4_PORT       port(MOTOR_UARTM4_PN)
 #define MOTOR_UARTM4_PIN        1
 #endif
+
+#endif
+
+#ifdef HAS_IOPORTS
+
+#define AUXOUTPUT0_PN           1
+#define AUXOUTPUT0_PORT         port(AUXOUTPUT0_PN)
+#define AUXOUTPUT0_PIN          18
+#define AUXOUTPUT1_PN           1
+#define AUXOUTPUT1_PORT         port(AUXOUTPUT1_PN)
+#define AUXOUTPUT1_PIN          20
+#define AUXOUTPUT2_PN           1
+#define AUXOUTPUT2_PORT         port(AUXOUTPUT2_PN)
+#define AUXOUTPUT2_PIN          22
 
 #endif
 
