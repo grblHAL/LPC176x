@@ -178,7 +178,7 @@ static void if_init (uint8_t motors, axes_signals_t enabled)
         TRINAMIC_SCK_PORT->DIR |= TRINAMIC_SCK_BIT;
         TRINAMIC_SCK_PORT->SET = TRINAMIC_SCK_BIT;
 
-        hal.enumerate_pins(true, add_cs_pin);
+        hal.enumerate_pins(true, add_cs_pin, NULL);
     }
 }
 
