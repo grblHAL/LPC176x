@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2022 Terje Io
+  Copyright (c) 2018-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1383,7 +1383,7 @@ static bool driver_setup (settings_t *settings)
 
  // Set defaults
 
-    IOInitDone = settings->version == 21;
+    IOInitDone = settings->version == 22;
 
     hal.settings_changed(settings);
 
@@ -1433,7 +1433,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "221014";
+    hal.driver_version = "230125";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
