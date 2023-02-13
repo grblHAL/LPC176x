@@ -66,6 +66,7 @@ static probe_state_t probe = {
 
 static axes_signals_t next_step_outbits;
 static pin_group_pins_t limit_inputs = {0};
+static spindle_id_t spindle_id = -1;
 static spindle_pwm_t spindle_pwm;
 static delay_t delay = { .ms = 1, .callback = NULL }; // NOTE: initial ms set to 1 for "resetting" systick timer on startup
 #if MPG_MODE == 1
@@ -1011,11 +1012,28 @@ uint32_t getElapsedTicks (void)
     return elapsed_tics;
 }
 
-// Configures peripherals when settings are initialized or changed
-void settings_changed (settings_t *settings)
+bool spindleConfig (spindle_ptrs_t *spindle)
 {
-    hal.spindle.cap.variable = !settings->spindle.flags.pwm_disable && spindle_precompute_pwm_values(&spindle_pwm, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1));
+    if(spindle == NULL)
+        return false;
 
+    if((spindle->cap.variable = !settings.spindle.flags.pwm_disable && spindle_precompute_pwm_values(spindle, &spindle_pwm, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1)))) {
+        pwm_init(&SPINDLE_PWM_CHANNEL, SPINDLE_PWM_USE_PRIMARY_PIN, SPINDLE_PWM_USE_SECONDARY_PIN, spindle_pwm.period, 0);
+        spindle->set_state = spindleSetStateVariable;
+    } else {
+        if(pwmEnabled)
+            spindle->set_state((spindle_state_t){0}, 0.0f);
+        spindle->set_state = spindleSetState;
+    }
+
+    spindle_update_caps(spindle, spindle->cap.variable ? &spindle_pwm : NULL);
+
+    return true;
+}
+
+// Configures peripherals when settings are initialized or changed
+void settings_changed (settings_t *settings, settings_changed_flags_t changed)
+{
 #if USE_STEPDIR_MAP
     stepdirmap_init (settings);
 #endif
@@ -1026,16 +1044,11 @@ void settings_changed (settings_t *settings)
         hal.stepper.disable_motors((axes_signals_t){0}, SquaringMode_Both);
 #endif
 
-        if(hal.spindle.cap.variable) {
-            pwm_init(&SPINDLE_PWM_CHANNEL, SPINDLE_PWM_USE_PRIMARY_PIN, SPINDLE_PWM_USE_SECONDARY_PIN, spindle_pwm.period, 0);
-            hal.spindle.set_state = spindleSetStateVariable;
-        } else {
-            if(pwmEnabled)
-                hal.spindle.set_state((spindle_state_t){0}, 0.0f);
-            hal.spindle.set_state = spindleSetState;
+        if(changed.spindle) {
+            spindleConfig(spindle_get_hal(spindle_id, SpindleHAL_Configured));
+            if(spindle_id == spindle_get_default())
+                spindle_select(spindle_id);
         }
-
-        spindle_update_caps(hal.spindle.cap.variable ? &spindle_pwm : NULL);
 
         int32_t t = (uint32_t)(12.0f * (settings->steppers.pulse_microseconds - STEP_PULSE_LATENCY)) - 1;
         pulse_length = t < 2 ? 2 : t;
@@ -1385,12 +1398,7 @@ static bool driver_setup (settings_t *settings)
 
     IOInitDone = settings->version == 22;
 
-    hal.settings_changed(settings);
-
-    if(hal.spindle.set_state)
-        hal.spindle.set_state((spindle_state_t){0}, 0.0f);
-
-    hal.coolant.set_state((coolant_state_t){0});
+    hal.settings_changed(settings, (settings_changed_flags_t){0});
 
     stepperSetDirOutputs((axes_signals_t){0});
 
@@ -1433,7 +1441,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "230125";
+    hal.driver_version = "230130";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1577,12 +1585,12 @@ static const spindle_ptrs_t spindle = {
     .cap.pwm_invert = On,
     .get_pwm = spindleGetPWM,
     .update_pwm = spindle_set_speed,
-//    .config = spindleConfig,
+    .config = spindleConfig,
     .set_state = spindleSetState,
     .get_state = spindleGetState
 };
 
-spindle_register(&spindle, "PWM");
+spindle_id = spindle_register(&spindle, "PWM");
 
 #if MPG_MODE == 1
   #if KEYPAD_ENABLE == 2
