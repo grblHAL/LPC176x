@@ -1441,7 +1441,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "230130";
+    hal.driver_version = "230331";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1521,6 +1521,7 @@ bool driver_init (void) {
 #ifdef SAFETY_DOOR_PIN
     hal.signals_cap.safety_door_ajar = On;
 #endif
+    hal.limits_cap = get_limits_cap();
 #ifdef COOLANT_MIST_PORT
     hal.driver_cap.mist_control = On;
 #endif
