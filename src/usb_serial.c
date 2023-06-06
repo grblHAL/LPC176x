@@ -33,6 +33,8 @@
 #include "chip.h"
 #include "app_usbd_cfg.h"
 #include "cdc_vcom.h"
+
+#include "usb_serial.h"
 #include "grbl/hal.h"
 #include "grbl/protocol.h"
 
@@ -115,6 +117,13 @@ USB_INTERFACE_DESCRIPTOR *find_IntfDesc(const uint8_t *pDesc, uint32_t intfClass
 
 static stream_rx_buffer_t rxbuf = {0};
 static stream_block_tx_buffer_t txbuf = {0};
+
+volatile usb_linestate_t usb_linestate = {0};
+
+static bool is_connected (void)
+{
+    return usb_linestate.pin.dtr && hal.get_elapsed_ticks() - usb_linestate.timestamp >= 15;
+}
 
 //
 // Returns number of free characters in the input buffer
@@ -286,6 +295,7 @@ const io_stream_t *usbInit (void)
     static const io_stream_t stream = {
         .type = StreamType_Serial,
         .state.is_usb = On,
+        .is_connected = is_connected,
         .read = usbGetC,
         .write = usbWriteS,
         .write_char = usbPutC,
