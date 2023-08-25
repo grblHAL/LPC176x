@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2021-2022 Terje Io
+  Copyright (c) 2021-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -109,11 +109,17 @@ static int32_t wait_on_input (io_port_type_t type, uint8_t port, wait_mode_t wai
 
 void ioports_event (input_signal_t *input)
 {
-    spin_lock = true;
-    event_bits |= input->bit;
+    uint_fast8_t idx = digital.in.n_ports;
 
-    if(input->interrupt_callback)
-        input->interrupt_callback(ioports_map_reverse(&digital.in, input->id - Output_Aux0), DIGITAL_IN(input->port, input->bit));
+    spin_lock = true;
+
+    do {
+        idx--;
+        if(aux_in[idx].port == input->port && aux_in[idx].pin == input->pin && aux_in[idx].interrupt_callback) {
+            aux_in[idx].interrupt_callback(ioports_map_reverse(&digital.in, input->id - Output_Aux0), DIGITAL_IN(input->port, input->bit));
+            break;
+        }
+    } while(idx);
 
     spin_lock = false;
 }

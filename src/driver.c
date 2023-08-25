@@ -92,66 +92,70 @@ static input_signal_t gpio0_signals[10] = {0}, gpio1_signals[10] = {0}, gpio2_si
 static periph_signal_t *periph_pins = NULL;
 
 static input_signal_t inputpin[] = {
-  #ifdef PROBE_PIN
+#ifdef PROBE_PIN
     { .id = Input_Probe,        .port = PROBE_PORT,        .pin = PROBE_PIN,         .group = PinGroup_Probe },
-  #endif
-  #ifdef RESET_PIN
+#endif
+#ifdef RESET_PIN
+  #if ESTOP_ENABLE
+    { .id = Input_EStop,        .port = RESET_PORT,        .pin = RESET_PIN,         .group = PinGroup_Control },
+  #else
     { .id = Input_Reset,        .port = RESET_PORT,        .pin = RESET_PIN,         .group = PinGroup_Control },
   #endif
-  #ifdef FEED_HOLD_PIN
+#endif
+#ifdef FEED_HOLD_PIN
     { .id = Input_FeedHold,     .port = FEED_HOLD_PORT,    .pin = FEED_HOLD_PIN,     .group = PinGroup_Control },
-  #endif
-  #ifdef CYCLE_START_PIN
+#endif
+#ifdef CYCLE_START_PIN
     { .id = Input_CycleStart,   .port = CYCLE_START_PORT,  .pin = CYCLE_START_PIN,   .group = PinGroup_Control },
-  #endif
-  #ifdef SAFETY_DOOR_PIN
+#endif
+#ifdef SAFETY_DOOR_PIN
     { .id = Input_SafetyDoor,   .port = SAFETY_DOOR_PORT,  .pin = SAFETY_DOOR_PIN,   .group = PinGroup_Control },
-  #endif
+#endif
     { .id = Input_LimitX,       .port = X_LIMIT_PORT,      .pin = X_LIMIT_PIN,       .group = PinGroup_Limit },
 #ifdef MPG_MODE_PIN
     { .id = Input_ModeSelect,   .port = MPG_MODE_PORT,     .pin = MPG_MODE_PIN,      .group = PinGroup_MPG },
 #endif
-  #ifdef X2_LIMIT_PIN
+#ifdef X2_LIMIT_PIN
     { .id = Input_LimitX_2,     .port = X2_LIMIT_PORT,     .pin = X2_LIMIT_PIN,      .group = PinGroup_Limit },
-  #endif
-  #ifdef X_LIMIT_PIN_MAX
+#endif
+#ifdef X_LIMIT_PIN_MAX
     { .id = Input_LimitX_Max,   .port = X_LIMIT_PORT_MAX,  .pin = X_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
-  #endif
+#endif
     { .id = Input_LimitY,       .port = Y_LIMIT_PORT,      .pin = Y_LIMIT_PIN,       .group = PinGroup_Limit },
-  #ifdef Y2_LIMIT_PIN
+#ifdef Y2_LIMIT_PIN
     { .id = Input_LimitY_2,     .port = Y2_LIMIT_PORT,     .pin = Y2_LIMIT_PIN,      .group = PinGroup_Limit },
-  #endif
-  #ifdef Y_LIMIT_PIN_MAX
+#endif
+#ifdef Y_LIMIT_PIN_MAX
     { .id = Input_LimitY_Max,   .port = Y_LIMIT_PORT_MAX,  .pin = Y_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
-  #endif
+#endif
     { .id = Input_LimitZ,       .port = Z_LIMIT_PORT,      .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit },
-  #ifdef Z2_LIMIT_PIN
+#ifdef Z2_LIMIT_PIN
     { .id = Input_LimitZ_2,     .port = Z2_LIMIT_PORT,     .pin = Z2_LIMIT_PIN,      .group = PinGroup_Limit },
-  #endif
-  #ifdef Z_LIMIT_PIN_MAX
+#endif
+#ifdef Z_LIMIT_PIN_MAX
     { .id = Input_LimitZ_Max,   .port = Z_LIMIT_PORT_MAX,  .pin = Z_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
-  #endif
-  #ifdef A_LIMIT_PIN
+#endif
+#ifdef A_LIMIT_PIN
     { .id = Input_LimitA,       .port = A_LIMIT_PORT,      .pin = A_LIMIT_PIN,       .group = PinGroup_Limit },
-  #endif
-  #ifdef A_LIMIT_PIN_MAX
+#endif
+#ifdef A_LIMIT_PIN_MAX
     { .id = Input_LimitA_Max,   .port = A_LIMIT_PORT_MAX,  .pin = A_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
-  #endif
-  #ifdef B_LIMIT_PIN
+#endif
+#ifdef B_LIMIT_PIN
     { .id = Input_LimitB,       .port = B_LIMIT_PORT,      .pin = B_LIMIT_PIN,       .group = PinGroup_Limit },
-  #endif
-  #ifdef B_LIMIT_PIN_MAX
+#endif
+#ifdef B_LIMIT_PIN_MAX
     { .id = Input_LimitB_Max,   .port = B_LIMIT_PORT_MAX,  .pin = B_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
-  #endif
-  #ifdef C_LIMIT_PIN
+#endif
+#ifdef C_LIMIT_PIN
     { .id = Input_LimitC,       .port = C_LIMIT_PORT,      .pin = C_LIMIT_PIN,       .group = PinGroup_Limit },
-  #endif
-  #ifdef C_LIMIT_PIN_MAX
+#endif
+#ifdef C_LIMIT_PIN_MAX
     { .id = Input_LimitC_Max,   .port = C_LIMIT_PORT_MAX,  .pin = C_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
-  #endif
-  #if I2C_STROBE_ENABLE && defined(I2C_STROBE_PIN)
+#endif
+#if I2C_STROBE_ENABLE && defined(I2C_STROBE_PIN)
     { .id = Input_I2CStrobe,    .port = I2C_STROBE_PORT,   .pin = I2C_STROBE_PIN,    .group = PinGroup_Keypad },
-  #endif
+#endif
 // Aux input pins must be consecutive in this array
 #ifdef AUXINPUT0_PIN
     { .id = Input_Aux0,         .port = AUXINPUT0_PORT,    .pin = AUXINPUT0_PIN,     .group = PinGroup_AuxInput },
@@ -736,7 +740,11 @@ static control_signals_t systemGetState (void)
     signals.value = settings.control_invert.mask;
 
 #if CONTROL_INMODE == GPIO_BITBAND
+  #if ESTOP_ENABLE
+    signals.e_stop = DIGITAL_IN(RESET_PORT, RESET_BIT);
+  #else
     signals.reset = DIGITAL_IN(RESET_PORT, RESET_BIT);
+  #endif
     signals.feed_hold = DIGITAL_IN(FEED_HOLD_PORT, FEED_HOLD_BIT);
     signals.cycle_start = DIGITAL_IN(CYCLE_START_PORT, CYCLE_START_BIT);
   #ifdef SAFETY_DOOR_PORT
@@ -744,7 +752,11 @@ static control_signals_t systemGetState (void)
   #endif
 #else
     uint8_t bits = CONTROL_PORT->PIN;
+  #if ESTOP_ENABLE
+    signals.e_stop = bits & RESET_BIT != 0;
+  #else
     signals.reset = bits & RESET_BIT != 0;
+  #endif
     signals.safety_door_ajar = bits & SAFETY_DOOR_BIT != 0;
     signals.feed_hold = bits & FEED_HOLD_BIT != 0;
     signals.cycle_start = bits & CYCLE_START_BIT != 0;
@@ -1107,6 +1119,11 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
                         input->irq_mode = control_fei.reset ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
 
+                    case Input_EStop:
+                        pullup = !settings->control_disable_pullup.e_stop;
+                        input->irq_mode = control_fei.e_stop ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                        break;
+
                     case Input_FeedHold:
                         pullup = !settings->control_disable_pullup.feed_hold;
                         input->irq_mode = control_fei.feed_hold ? IRQ_Mode_Falling : IRQ_Mode_Rising;
@@ -1441,7 +1458,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "230511";
+    hal.driver_version = "230824";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1518,6 +1535,10 @@ bool driver_init (void) {
 
   // driver capabilities, used for announcing and negotiating (with Grbl) driver functionality
 
+#if ESTOP_ENABLE
+    hal.signals_cap.e_stop = On;
+    hal.signals_cap.reset = Off;
+#endif
 #ifdef SAFETY_DOOR_PIN
     hal.signals_cap.safety_door_ajar = On;
 #endif

@@ -36,7 +36,8 @@
 #define USB_SERIAL_CDC     1 // Comment out to use UART communication.
 #endif
 //#define SAFETY_DOOR_ENABLE 1 // Enable safety door input.
-//#define SDCARD_ENABLE      1 // Run gcode programs from SD card, requires sdcard plugin.
+//#define BLUETOOTH_ENABLE   2 // Set to 2 for HC-05 module. Requires and claims one auxillary input pin.
+//#define SDCARD_ENABLE      1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
 //#define MPG_ENABLE         1 // Enable MPG interface. Requires serial port and one handshake pin.
 //#define TRINAMIC_ENABLE 2130 // Uncomment to enable Trinamic TMC2130 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
 //#define TRINAMIC_ENABLE 2209 // Uncomment to enable Trinamic TMC2209 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
@@ -44,6 +45,8 @@
 //#define LIMIT_MAX_ENABLE   1 // Uncomment to enable max limit input pins (when available)
 //#define EEPROM_ENABLE     16 // I2C EEPROM/FRAM support. Set to 16 for 2K, 32 for 4K, 64 for 8K, 128 for 16K and 256 for 16K capacity.
 //#define EEPROM_IS_FRAM     1 // Uncomment when EEPROM is enabled and chip is FRAM, this to remove write delay.
+#define ESTOP_ENABLE       0 // When enabled only real-time report requests will be executed when the reset pin is asserted.
+                               // Note: if commented out the default setting is determined from COMPATIBILITY_LEVEL.
 
 // If the selected board map supports more than three motors ganging and/or auto-squaring
 // of axes can be enabled here.

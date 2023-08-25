@@ -32,7 +32,10 @@
 #endif
 
 #define BOARD_NAME "Ramps 1.6"
-//#define HAS_IOPORTS
+
+#if BLUETOOTH_ENABLE == 2
+#define HAS_IOPORTS
+#endif
 
 // Define step pulse output pins.
 

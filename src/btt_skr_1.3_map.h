@@ -28,6 +28,11 @@
 #endif
 
 #define BOARD_NAME "BTT SKR V1.3"
+#define BOARD_URL "https://github.com/bigtreetech/BIGTREETECH-SKR-V1.3"
+
+#if BLUETOOTH_ENABLE == 2
+#define HAS_IOPORTS
+#endif
 
 #if TRINAMIC_ENABLE
 #define HAS_BOARD_INIT
@@ -175,6 +180,10 @@ void board_init (void);
 #define MPG_MODE_PN             2
 #define MPG_MODE_PORT           port(MPG_MODE_PN)
 #define MPG_MODE_PIN            0
+#elif BLUETOOTH_ENABLE == 2
+#define AUXINPUT0_PN            2
+#define AUXINPUT0_PORT          port(AUXINPUT0_PN)
+#define AUXINPUT0_PIN           0
 #endif
 
 #ifdef SPINDLE_PWM_PIN_2_4
