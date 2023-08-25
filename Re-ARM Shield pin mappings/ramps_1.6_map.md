@@ -24,8 +24,8 @@ Uncomment `#define BOARD_RAMPS16` in [my_machine.h](../main/my_machine.h) to use
                                   X step - P2.1 [A0]         [07] -
                                   X dir - P0.11 [A1]    L    [06] P1.21
                                Y enable - P0.19 [A2]    P    [05] P1.19 - Spindle dir
-                                  Reset - P0.27 [A3]    C    [04] P1.18 - Spindle enable
-                              Feed hold - P0.28 [A4]    1    [03] P1.24 - X limit min
+                                Reset** - P0.27 [A3]    C    [04] P1.18 - Spindle enable
+                            Feed hold** - P0.28 [A4]    1    [03] P1.24 - X limit min
                              Cycle start - P2.6 [A5]    7    [02] P1.25 - X limit max
                                   Y step - P2.2 [A6]    6    [01] P0.2 - TXD0
                                   Y dir - P0.20 [A7]    8    [00] P0.3 - RXD0
@@ -61,6 +61,7 @@ P1.22 ------------------------------------------+    |     |    +---------------
 ```
 
 \* Aux output pins are optional and must be enabled in the board map file.
+\*\* Pull-up or pull-down cannot be enabled for these pins.
 
 ---
-2021-06-12
+2023-08-24
