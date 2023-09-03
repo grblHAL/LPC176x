@@ -119,21 +119,21 @@ static input_signal_t inputpin[] = {
     { .id = Input_LimitX_2,     .port = X2_LIMIT_PORT,     .pin = X2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
 #ifdef X_LIMIT_PIN_MAX
-    { .id = Input_LimitX_Max,   .port = X_LIMIT_PORT_MAX,  .pin = X_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
+    { .id = Input_LimitX_Max,   .port = X_LIMIT_PORT_MAX,  .pin = X_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
 #endif
     { .id = Input_LimitY,       .port = Y_LIMIT_PORT,      .pin = Y_LIMIT_PIN,       .group = PinGroup_Limit },
 #ifdef Y2_LIMIT_PIN
     { .id = Input_LimitY_2,     .port = Y2_LIMIT_PORT,     .pin = Y2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
 #ifdef Y_LIMIT_PIN_MAX
-    { .id = Input_LimitY_Max,   .port = Y_LIMIT_PORT_MAX,  .pin = Y_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
+    { .id = Input_LimitY_Max,   .port = Y_LIMIT_PORT_MAX,  .pin = Y_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
 #endif
     { .id = Input_LimitZ,       .port = Z_LIMIT_PORT,      .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit },
 #ifdef Z2_LIMIT_PIN
     { .id = Input_LimitZ_2,     .port = Z2_LIMIT_PORT,     .pin = Z2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
 #ifdef Z_LIMIT_PIN_MAX
-    { .id = Input_LimitZ_Max,   .port = Z_LIMIT_PORT_MAX,  .pin = Z_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
+    { .id = Input_LimitZ_Max,   .port = Z_LIMIT_PORT_MAX,  .pin = Z_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
 #endif
 #ifdef A_LIMIT_PIN
     { .id = Input_LimitA,       .port = A_LIMIT_PORT,      .pin = A_LIMIT_PIN,       .group = PinGroup_Limit },
@@ -642,21 +642,26 @@ static void stepperPulseStartDelayed (stepper_t *stepper)
 }
 
 // Enable/disable limit pins interrupt
-static void limitsEnable (bool on, bool homing)
+static void limitsEnable (bool on, axes_signals_t homing_cycle)
 {
 #ifdef LIMITS_POLL_PORT
-    limits_poll = on & settings.limits.flags.hard_enabled;
+    limits_poll = on && homing_cycle.mask == 0;
 #else
+    bool disable = !on;
     uint32_t i = limit_inputs.n_pins;
-
-    on &= settings.limits.flags.hard_enabled;
+    axes_signals_t pin;
+    limit_signals_t homing_source = xbar_get_homing_source_from_cycle(homing_cycle);
 
     do {
         i--;
-        if(on)
-            gpio_int_enable(&limit_inputs.pins.inputs[i], limit_inputs.pins.inputs[i].irq_mode);  // Enable interrupt.
-        else
+        if(on && homing_cycle.mask) {
+            pin = xbar_fn_to_axismask(limit_inputs.pins.inputs[i].id);
+            disable = limit_inputs.pins.inputs[i].group == PinGroup_Limit ? (pin.mask & homing_source.min.mask) : (pin.mask & homing_source.max.mask);
+        }
+        if(disable)
             gpio_int_enable(&limit_inputs.pins.inputs[i], IRQ_Mode_None); // Disable interrupt.
+        else
+            gpio_int_enable(&limit_inputs.pins.inputs[i], limit_inputs.pins.inputs[i].irq_mode);  // Enable interrupt.
     } while(i);
 #endif
 }
@@ -1233,7 +1238,7 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
                         while(true);
                     }
 
-                    if(input->group == PinGroup_Limit)
+                    if(input->group & (PinGroup_Limit|PinGroup_LimitMax))
                         input->irq_mode = IRQ_Mode_None;
                 }
 
@@ -1458,7 +1463,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "230824";
+    hal.driver_version = "230828";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1543,6 +1548,7 @@ bool driver_init (void) {
     hal.signals_cap.safety_door_ajar = On;
 #endif
     hal.limits_cap = get_limits_cap();
+    hal.home_cap = get_home_cap();
 #ifdef COOLANT_MIST_PORT
     hal.driver_cap.mist_control = On;
 #endif
@@ -1572,7 +1578,7 @@ bool driver_init (void) {
             input->cap.irq_mode = input->port == LPC_GPIO0 || input->port == LPC_GPIO2 ? IRQ_Mode_Edges : IRQ_Mode_None;
         }
 
-        if(input->group == PinGroup_Limit) {
+        if(input->group & (PinGroup_Limit|PinGroup_LimitMax)) {
             if(limit_inputs.pins.inputs == NULL)
                 limit_inputs.pins.inputs = input;
             limit_inputs.n_pins++;
@@ -1719,6 +1725,7 @@ void DEBOUNCE_IRQHandler (void)
           switch(signal->group) {
 
             case PinGroup_Limit:
+            case PinGroup_LimitMax:
                 {
                     limit_signals_t state = limitsGetState();
                     if(limit_signals_merge(state).value) //TODO: add check for limit switches having same state as when limit_isr were invoked?
@@ -1828,7 +1835,7 @@ void GPIO_IRQHandler (void)
         DEBOUNCE_TIMER->TCR = 0b01;
     }
 
-    if(grp & PinGroup_Limit)
+    if(grp & (PinGroup_Limit|PinGroup_LimitMax))
         hal.limits.interrupt_callback(limitsGetState());
 
     if(grp & PinGroup_Control)
