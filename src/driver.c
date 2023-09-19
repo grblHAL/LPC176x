@@ -1367,7 +1367,9 @@ static bool driver_setup (settings_t *settings)
         //
         outputpin[i].port->DIR |= outputpin[i].bit;
 
-        if(outputpin[i].group == PinGroup_MotorChipSelect || outputpin[i].group == PinGroup_MotorUART)
+        if(outputpin[i].group == PinGroup_MotorChipSelect ||
+            outputpin[i].group == PinGroup_MotorUART ||
+             outputpin[i].group == PinGroup_StepperEnable)
             outputpin[i].port->SET = outputpin[i].bit;
     }
 
@@ -1463,7 +1465,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "230828";
+    hal.driver_version = "230919";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
