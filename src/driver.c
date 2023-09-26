@@ -1465,14 +1465,14 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "230919";
+    hal.driver_version = "230924";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
 #ifdef BOARD_URL
-    hal.board = BOARD_URL;
+    hal.board_url = BOARD_URL;
 #endif
     hal.f_step_timer = SystemCoreClock / Chip_Clock_GetPCLKDiv(STEPPER_TIMER_PCLK);
     hal.rx_buffer_size = RX_BUFFER_SIZE;
