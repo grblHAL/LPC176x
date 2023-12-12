@@ -30,10 +30,6 @@
 #define BOARD_NAME "BTT SKR V1.3"
 #define BOARD_URL "https://github.com/bigtreetech/BIGTREETECH-SKR-V1.3"
 
-#if BLUETOOTH_ENABLE == 2
-#define HAS_IOPORTS
-#endif
-
 #if TRINAMIC_ENABLE
 #define HAS_BOARD_INIT
 void board_init (void);
@@ -150,7 +146,41 @@ void board_init (void);
 #define SPINDLE_DIRECTION_PORT  port(SPINDLE_DIRECTION_PN)
 #define SPINDLE_DIRECTION_PIN   21
 
-// Start of PWM & Stepper Enabled Spindle
+// Define driver spindle pins
+
+#if DRIVER_SPINDLE_PWM_ENABLE
+#ifdef SPINDLE_PWM_PIN_2_4
+#define SPINDLE_PWM_CHANNEL             PWM1_CH5    // MOSFET3 (P2.4)
+#else
+#define SPINDLE_PWM_CHANNEL             PWM1_CH6    // BED MOSFET (P2.5)
+#endif
+#define SPINDLE_PWM_USE_PRIMARY_PIN     false
+#define SPINDLE_PWM_USE_SECONDARY_PIN   true
+#else
+#define AUXOUTPUT0_PN                   2
+#define AUXOUTPUT0_PORT                 port(AUXOUTPUT0_PN)
+#define AUXOUTPUT0_PIN                  4
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PN            1
+#define SPINDLE_DIRECTION_PORT          port(SPINDLE_DIRECTION_PN)
+#define SPINDLE_DIRECTION_PIN           21
+#else
+#define AUXOUTPUT1_PN                   1
+#define AUXOUTPUT1_PORT                 port(AUXOUTPUT1_PN)
+#define AUXOUTPUT1_PIN                  21
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PN               1
+#define SPINDLE_ENABLE_PORT             port(SPINDLE_ENABLE_PN)
+#define SPINDLE_ENABLE_PIN              23
+#else
+#define AUXOUTPUT2_PN                   1
+#define AUXOUTPUT2_PORT                 port(AUXOUTPUT2_PN)
+#define AUXOUTPUT2_PIN                  23
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PN        3
@@ -186,14 +216,6 @@ void board_init (void);
 #define AUXINPUT0_PIN           0
 #endif
 
-#ifdef SPINDLE_PWM_PIN_2_4
-#define SPINDLE_PWM_CHANNEL         PWM1_CH5    // MOSFET3 (P2.4)
-#else
-#define SPINDLE_PWM_CHANNEL     PWM1_CH6    // BED MOSFET (P2.5)
-#endif
-#define SPINDLE_PWM_USE_PRIMARY_PIN   false
-#define SPINDLE_PWM_USE_SECONDARY_PIN true
-
 #if SDCARD_ENABLE
 #define SD_SPI_PORT 1
 #define SD_CS_PN    0
@@ -222,7 +244,6 @@ void board_init (void);
 #define MOTOR_UARTM4_PORT       port(MOTOR_UARTM4_PN)
 #define MOTOR_UARTM4_PIN        1
 #endif
-
 
 #elif TRINAMIC_SPI_ENABLE
 

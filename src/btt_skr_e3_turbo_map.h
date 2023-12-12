@@ -32,6 +32,8 @@
 #undef TRINAMIC_ENABLE
 #endif
 #define TRINAMIC_ENABLE 2209
+#undef TRINAMIC_UART_ENABLE
+#define TRINAMIC_UART_ENABLE 1
 #define HAS_BOARD_INIT
 
 // Define step pulse output pins.
@@ -133,15 +135,37 @@
 #define PROBE_PORT              port(PROBE_PN)
 #define PROBE_PIN               22
 
-// Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PN       0
-#define SPINDLE_ENABLE_PORT     port(SPINDLE_ENABLE_PN)
-#define SPINDLE_ENABLE_PIN      16
-#define SPINDLE_DIRECTION_PN    1
-#define SPINDLE_DIRECTION_PORT  port(SPINDLE_DIRECTION_PN)
-#define SPINDLE_DIRECTION_PIN   20
+// Define driver spindle pins
 
-// Start of PWM & Stepper Enabled Spindle
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_CHANNEL             PWM1_CH5    // NeoPixel middle (primary) / Heater 1 (secondary)
+#define SPINDLE_PWM_USE_PRIMARY_PIN     true
+#define SPINDLE_PWM_USE_SECONDARY_PIN   false
+#else
+#define AUXOUTPUT0_PN                   2
+#define AUXOUTPUT0_PORT                 port(AUXOUTPUT0_PN)
+#define AUXOUTPUT0_PIN                  4
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PN            1
+#define SPINDLE_DIRECTION_PORT          port(SPINDLE_DIRECTION_PN)
+#define SPINDLE_DIRECTION_PIN           20
+#else
+#define AUXOUTPUT1_PN                   1
+#define AUXOUTPUT1_PORT                 port(AUXOUTPUT1_PN)
+#define AUXOUTPUT1_PIN                  20
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PN               0
+#define SPINDLE_ENABLE_PORT             port(SPINDLE_ENABLE_PN)
+#define SPINDLE_ENABLE_PIN              16
+#else
+#define AUXOUTPUT2_PN                   0
+#define AUXOUTPUT2_PORT                 port(AUXOUTPUT2_PN)
+#define AUXOUTPUT2_PIN                  16
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PN        0
@@ -172,10 +196,6 @@
 #endif
 
 #define CONTROL_INMODE          GPIO_BITBAND
-
-#define SPINDLE_PWM_CHANNEL     PWM1_CH5    // NeoPixel middle (primary) / Heater 1 (secondary)
-#define SPINDLE_PWM_USE_PRIMARY_PIN   true
-#define SPINDLE_PWM_USE_SECONDARY_PIN false
 
 #if SDCARD_ENABLE
 #define SD_SPI_PORT             0

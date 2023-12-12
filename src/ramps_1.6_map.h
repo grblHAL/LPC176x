@@ -33,10 +33,6 @@
 
 #define BOARD_NAME "Ramps 1.6"
 
-#if BLUETOOTH_ENABLE == 2
-#define HAS_IOPORTS
-#endif
-
 // Define step pulse output pins.
 
 #define X_STEP_PN               2
@@ -147,15 +143,41 @@
 #define PROBE_PORT              port(PROBE_PN)
 #define PROBE_PIN               6
 
-// Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PN       1
-#define SPINDLE_ENABLE_PORT     port(SPINDLE_ENABLE_PN)
-#define SPINDLE_ENABLE_PIN      18  // Due Digital Pin 4
-#define SPINDLE_DIRECTION_PN    1
-#define SPINDLE_DIRECTION_PORT  port(SPINDLE_DIRECTION_PN)
-#define SPINDLE_DIRECTION_PIN   19  // Due Digital Pin 5
+// Define driver spindle pins
 
-// Start of PWM & Stepper Enabled Spindle
+#if DRIVER_SPINDLE_PWM_ENABLE
+#ifdef SPINDLE_PWM_PIN_2_4
+#define SPINDLE_PWM_CHANNEL             PWM1_CH5    // MOSFET3 (P2.4)
+#else
+#define SPINDLE_PWM_CHANNEL             PWM1_CH6    // BED MOSFET (P2.5)
+#endif
+#define SPINDLE_PWM_USE_PRIMARY_PIN     false
+#define SPINDLE_PWM_USE_SECONDARY_PIN   true
+#else
+#define AUXOUTPUT0_PN                   2
+#define AUXOUTPUT0_PORT                 port(AUXOUTPUT0_PN)
+#define AUXOUTPUT0_PIN                  4
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PN            1
+#define SPINDLE_DIRECTION_PORT          port(SPINDLE_DIRECTION_PN)
+#define SPINDLE_DIRECTION_PIN           19
+#else
+#define AUXOUTPUT1_PN                   1
+#define AUXOUTPUT1_PORT                 port(AUXOUTPUT1_PN)
+#define AUXOUTPUT1_PIN                  19
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PN               1
+#define SPINDLE_ENABLE_PORT             port(SPINDLE_ENABLE_PN)
+#define SPINDLE_ENABLE_PIN              18
+#else
+#define AUXOUTPUT2_PN                   1
+#define AUXOUTPUT2_PORT                 port(AUXOUTPUT2_PN)
+#define AUXOUTPUT2_PIN                  18
+#endif
 
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PN        0
@@ -177,20 +199,10 @@
 
 #define CONTROL_INMODE          GPIO_BITBAND
 
-#ifdef SPINDLE_PWM_PIN_2_4
-#define SPINDLE_PWM_CHANNEL     PWM1_CH5    // MOSFET3 (P2.4)
-#else
-#define SPINDLE_PWM_CHANNEL     PWM1_CH6    // BED MOSFET (P2.5)
-#endif
-#define SPINDLE_PWM_USE_PRIMARY_PIN   false
-#define SPINDLE_PWM_USE_SECONDARY_PIN true
-
 #define SD_SPI_PORT             1
 #define SD_CS_PN                0
 #define SD_CS_PORT              port(SD_CS_PN)
 #define SD_CS_PIN               6
-
-#ifdef HAS_IOPORTS
 
 #define AUXINPUT0_PN            0
 #define AUXINPUT0_PORT          port(AUXINPUT0_PN)
@@ -208,7 +220,5 @@
 #define AUXOUTPUT2_PN           1
 #define AUXOUTPUT2_PORT         port(AUXOUTPUT2_PN)
 #define AUXOUTPUT2_PIN          31
-
-#endif
 
 /**/

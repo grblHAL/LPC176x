@@ -57,17 +57,22 @@
 #include "eeprom/eeprom.h"
 #endif
 
-static bool pwmEnabled = false, IOInitDone = false;
+static bool IOInitDone = false;
 static uint16_t pulse_length, pulse_delay;
 // Inverts the probe pin state depending on user settings and probing cycle mode.
 static probe_state_t probe = {
     .connected = On
 };
-
+#if DRIVER_SPINDLE_ENABLE
+static spindle_id_t spindle_id = -1;
+#endif
+#if DRIVER_SPINDLE_PWM_ENABLE
+static bool pwmEnabled = false;
+static spindle_pwm_t spindle_pwm;
+#define pwm(s) ((spindle_pwm_t *)s->context)
+#endif
 static axes_signals_t next_step_outbits;
 static pin_group_pins_t limit_inputs = {0};
-static spindle_id_t spindle_id = -1;
-static spindle_pwm_t spindle_pwm;
 static delay_t delay = { .ms = 1, .callback = NULL }; // NOTE: initial ms set to 1 for "resetting" systick timer on startup
 #if MPG_MODE == 1
 static input_signal_t *mpg_pin = NULL;
@@ -312,8 +317,6 @@ static output_signal_t outputpin[] = {
 #ifdef SQUARING_ENABLED
 static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
 #endif
-
-static void spindle_set_speed (uint_fast16_t pwm_value);
 
 // Interrupt handler prototypes
 
@@ -800,6 +803,8 @@ static probe_state_t probeGetState (void)
     return state;
 }
 
+#if DRIVER_SPINDLE_ENABLE
+
 // Static spindle (off, on cw & on ccw)
 
 inline static void spindle_off (void)
@@ -812,37 +817,43 @@ inline static void spindle_on (void)
     DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT, !settings.spindle.invert.on);
 }
 
-#ifdef SPINDLE_DIRECTION_PIN
 inline static void spindle_dir (bool ccw)
 {
+#ifdef SPINDLE_DIRECTION_PIN
     DIGITAL_OUT(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT, ccw ^ settings.spindle.invert.ccw);
-}
+#else
+    UNUSED(ccw);
 #endif
+}
 
 // Start or stop spindle
-static void spindleSetState (spindle_state_t state, float rpm)
+static void spindleSetState (spindle_ptrs_t *spindle, spindle_state_t state, float rpm)
 {
+    UNUSED(spindle);
+
     if (!state.on)
         spindle_off();
     else {
-#ifdef SPINDLE_DIRECTION_PIN
         spindle_dir(state.ccw);
-#endif
         spindle_on();
     }
 }
 
-// Variable spindle control functions
+#if DRIVER_SPINDLE_PWM_ENABLE
 
 // Sets spindle speed
-static void spindle_set_speed (uint_fast16_t pwm_value)
+static void spindleSetSpeed (spindle_ptrs_t *spindle, uint_fast16_t pwm_value)
 {
-    if (pwm_value == spindle_pwm.off_value) {
+    if (pwm_value == pwm(spindle)->off_value) {
         pwmEnabled = false;
-        if(settings.spindle.flags.enable_rpm_controlled)
-            spindle_off();
-        if(spindle_pwm.always_on) {
-            pwm_set_width(&SPINDLE_PWM_CHANNEL, spindle_pwm.off_value);
+        if(pwm(spindle)->settings->flags.enable_rpm_controlled) {
+            if(pwm(spindle)->cloned)
+                spindle_dir(false);
+            else
+                spindle_off();
+        }
+        if(pwm(spindle)->always_on) {
+            pwm_set_width(&SPINDLE_PWM_CHANNEL, pwm(spindle)->off_value);
             pwm_enable(&SPINDLE_PWM_CHANNEL);
         } else {
             pwm_set_width(&SPINDLE_PWM_CHANNEL, 0);
@@ -850,7 +861,10 @@ static void spindle_set_speed (uint_fast16_t pwm_value)
         }
     } else {
         if(!pwmEnabled) {
-            spindle_on();
+            if(pwm(spindle)->cloned)
+                spindle_dir(true);
+            else
+                spindle_on();
             pwmEnabled = true;
         }
         pwm_set_width(&SPINDLE_PWM_CHANNEL, pwm_value);
@@ -858,31 +872,56 @@ static void spindle_set_speed (uint_fast16_t pwm_value)
     }
 }
 
-static uint_fast16_t spindleGetPWM (float rpm)
+static uint_fast16_t spindleGetPWM (spindle_ptrs_t *spindle, float rpm)
 {
-    return spindle_compute_pwm_value(&spindle_pwm, rpm, false);
+    return pwm(spindle)->compute_value(pwm(spindle), rpm, false);
 }
 
 // Start or stop spindle
-static void spindleSetStateVariable (spindle_state_t state, float rpm)
+static void spindleSetStateVariable (spindle_ptrs_t *spindle, spindle_state_t state, float rpm)
 {
 #ifdef SPINDLE_DIRECTION_PIN
-    if (state.on)
+    if (state.on || pwm(spindle)->cloned)
         spindle_dir(state.ccw);
 #endif
-    if(!settings.spindle.flags.enable_rpm_controlled) {
-        if (state.on)
+    if(!pwm(spindle)->settings->flags.enable_rpm_controlled) {
+        if(state.on)
             spindle_on();
         else
             spindle_off();
     }
 
-    spindle_set_speed(state.on ? spindle_compute_pwm_value(&spindle_pwm, rpm, false) : spindle_pwm.off_value);
+    spindleSetSpeed(spindle, state.on || (state.ccw && pwm(spindle)->cloned)
+                              ? pwm(spindle)->compute_value(pwm(spindle), rpm, false)
+                              : pwm(spindle)->off_value);
 }
 
-// Returns spindle state in a spindle_state_t variable
-static spindle_state_t spindleGetState (void)
+bool spindleConfig (spindle_ptrs_t *spindle)
 {
+    if(spindle == NULL)
+        return false;
+
+    if(spindle_precompute_pwm_values(spindle, &spindle_pwm, &settings.spindle, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1))) {
+        pwm_init(&SPINDLE_PWM_CHANNEL, SPINDLE_PWM_USE_PRIMARY_PIN, SPINDLE_PWM_USE_SECONDARY_PIN, spindle_pwm.period, 0);
+        spindle->set_state = spindleSetStateVariable;
+    } else {
+        if(pwmEnabled)
+            spindle->set_state(spindle, (spindle_state_t){0}, 0.0f);
+        spindle->set_state = spindleSetState;
+    }
+
+    spindle_update_caps(spindle, spindle->cap.variable ? &spindle_pwm : NULL);
+
+    return true;
+}
+
+#endif // DRIVER_SPINDLE_PWM_ENABLE
+
+// Returns spindle state in a spindle_state_t variable
+static spindle_state_t spindleGetState (spindle_ptrs_t *spindle)
+{
+    UNUSED(spindle);
+
     spindle_state_t state = {settings.spindle.invert.mask};
 
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT);
@@ -894,7 +933,7 @@ static spindle_state_t spindleGetState (void)
     return state;
 }
 
-// end spindle code
+#endif // DRIVER_SPINDLE_ENABLE
 
 // Start/stop coolant (and mist if enabled)
 static void coolantSetState (coolant_state_t mode)
@@ -1029,25 +1068,6 @@ uint32_t getElapsedTicks (void)
     return elapsed_tics;
 }
 
-bool spindleConfig (spindle_ptrs_t *spindle)
-{
-    if(spindle == NULL)
-        return false;
-
-    if((spindle->cap.variable = !settings.spindle.flags.pwm_disable && spindle_precompute_pwm_values(spindle, &spindle_pwm, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1)))) {
-        pwm_init(&SPINDLE_PWM_CHANNEL, SPINDLE_PWM_USE_PRIMARY_PIN, SPINDLE_PWM_USE_SECONDARY_PIN, spindle_pwm.period, 0);
-        spindle->set_state = spindleSetStateVariable;
-    } else {
-        if(pwmEnabled)
-            spindle->set_state((spindle_state_t){0}, 0.0f);
-        spindle->set_state = spindleSetState;
-    }
-
-    spindle_update_caps(spindle, spindle->cap.variable ? &spindle_pwm : NULL);
-
-    return true;
-}
-
 // Configures peripherals when settings are initialized or changed
 void settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
@@ -1061,11 +1081,13 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
         hal.stepper.disable_motors((axes_signals_t){0}, SquaringMode_Both);
 #endif
 
+#if DRIVER_SPINDLE_PWM_ENABLE
         if(changed.spindle) {
             spindleConfig(spindle_get_hal(spindle_id, SpindleHAL_Configured));
             if(spindle_id == spindle_get_default())
                 spindle_select(spindle_id);
         }
+#endif
 
         int32_t t = (uint32_t)(12.0f * (settings->steppers.pulse_microseconds - STEP_PULSE_LATENCY)) - 1;
         pulse_length = t < 2 ? 2 : t;
@@ -1465,7 +1487,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "230924";
+    hal.driver_version = "231205";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1596,31 +1618,55 @@ bool driver_init (void) {
         }
     }
 
-#ifdef HAS_IOPORTS
     ioports_init(&aux_inputs, &aux_outputs);
-#endif
 
 #ifdef HAS_BOARD_INIT
     board_init();
 #endif
 
-serialRegisterStreams();
+    serialRegisterStreams();
 
-static const spindle_ptrs_t spindle = {
-#ifdef SPINDLE_DIRECTION_PIN
-    .cap.direction = On,
-#endif
-    .cap.laser = On,
-    .cap.variable = On,
-    .cap.pwm_invert = On,
-    .get_pwm = spindleGetPWM,
-    .update_pwm = spindle_set_speed,
-    .config = spindleConfig,
-    .set_state = spindleSetState,
-    .get_state = spindleGetState
-};
+#if DRIVER_SPINDLE_ENABLE
 
-spindle_id = spindle_register(&spindle, "PWM");
+ #if DRIVER_SPINDLE_PWM_ENABLE
+
+    static const spindle_ptrs_t spindle = {
+        .type = SpindleType_PWM,
+        .config = spindleConfig,
+        .set_state = spindleSetStateVariable,
+        .get_state = spindleGetState,
+        .get_pwm = spindleGetPWM,
+        .update_pwm = spindleSetSpeed,
+        .cap = {
+            .gpio_controlled = On,
+            .variable = On,
+            .laser = On,
+            .pwm_invert = On,
+  #if DRIVER_SPINDLE_DIR_ENABLE
+            .direction = On
+  #endif
+        }
+    };
+
+ #else
+
+    static const spindle_ptrs_t spindle = {
+        .type = SpindleType_Basic,
+        .set_state = spindleSetState,
+        .get_state = spindleGetState,
+        .cap = {
+            .gpio_controlled = On,
+  #if DRIVER_SPINDLE_DIR_ENABLE
+            .direction = On
+  #endif
+        }
+    };
+
+ #endif
+
+    spindle_id = spindle_register(&spindle, DRIVER_SPINDLE_NAME);
+
+#endif // DRIVER_SPINDLE_ENABLE
 
 #if MPG_MODE == 1
   #if KEYPAD_ENABLE == 2
@@ -1768,12 +1814,9 @@ void GPIO_IRQHandler (void)
                     protocol_enqueue_rt_command(mpg_select);
                     break;
 #endif
-
-#ifdef HAS_IOPORTS
                     case PinGroup_AuxInput:
                         ioports_event(&gpio0_signals[i]);
                         break;
-#endif
 
 #if I2C_STROBE_ENABLE
                     case PinGroup_Keypad:
@@ -1807,12 +1850,10 @@ void GPIO_IRQHandler (void)
                     protocol_enqueue_rt_command(mpg_select);
                     break;
 #endif
-
-#ifdef HAS_IOPORTS
                     case PinGroup_AuxInput:
                         ioports_event(&gpio2_signals[i]);
                         break;
-#endif
+
 #if KEYPAD_ENABLE
                     case PinGroup_Keypad:
                         if(i2c_strobe.callback)

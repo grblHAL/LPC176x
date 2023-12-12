@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ static status_code_t set_axis_setting (setting_id_t setting, float value);
 static float get_axis_setting (setting_id_t setting);
 
 static const setting_detail_t mks_settings[] = {
-    { Setting_AxisStepperCurrent, Group_Axis0, "?-axis motor current", "A", Format_Decimal, "0.0#", "0", "2.2", Setting_NonCoreFn, set_axis_setting, get_axis_setting }
+    { Setting_AxisStepperCurrent, Group_Axis0, "-axis motor current", "A", Format_Decimal, "0.0#", "0", "2.2", Setting_NonCoreFn, set_axis_setting, get_axis_setting, NULL, { .subgroups = On, .increment = 1 }  }
 };
 
 static void mks_settings_save (void)

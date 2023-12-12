@@ -21,8 +21,6 @@
 
 #include "driver.h"
 
-#ifdef HAS_IOPORTS
-
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -338,6 +336,3 @@ void ioports_init (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs)
     } else
         hal.port.set_pin_description = NULL;
 }
-
-
-#endif
