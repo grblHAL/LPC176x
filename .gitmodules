@@ -16,3 +16,9 @@
 [submodule "src/bluetooth"]
 	path = src/bluetooth
 	url = https://github.com/grblHAL/Plugins_Bluetooth/
+[submodule "src/spindle"]
+	path = src/spindle
+	url = https://github.com/grblHAL/Plugins_spindle/
+[submodule "src/laser"]
+	path = src/laser
+	url = https://github.com/grblHAL/Plugins_laser/
