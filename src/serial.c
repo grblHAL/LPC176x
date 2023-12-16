@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2017-2022 Terje Io
+  Copyright (c) 2017-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -79,6 +79,7 @@ static io_stream_properties_t serial[] = {
       .flags.claimed = Off,
       .flags.connected = On,
       .flags.can_set_baud = On,
+      .flags.modbus_ready = On,
       .claim = serialInit
     }
 };
@@ -98,8 +99,9 @@ void serialRegisterStreams (void)
 //
 static uint16_t serialTxCount (void)
 {
-  uint16_t tail = txbuf.tail;
-  return BUFCOUNT(txbuf.head, tail, TX_BUFFER_SIZE); // TODO: add number of characters in TX FIFO
+    uint16_t tail = txbuf.tail;
+
+    return BUFCOUNT(txbuf.head, tail, TX_BUFFER_SIZE) + (SERIAL_MODULE->LSR & UART_LSR_TEMT ? 0 : 1); // TODO: add number of characters in TX FIFO
 }
 
 //
@@ -108,6 +110,7 @@ static uint16_t serialTxCount (void)
 static uint16_t serialRxCount (void)
 {
   uint16_t tail = rxbuf.tail, head = rxbuf.head;
+
   return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
