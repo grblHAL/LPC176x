@@ -190,13 +190,21 @@ void board_init (void);
 #define CYCLE_START_PORT        port(CYCLE_START_PN)
 #define CYCLE_START_PIN         25
 
+#define CONTROL_INMODE          GPIO_BITBAND
+
+#define AUXINPUT0_PN            0
+#define AUXINPUT0_PORT          port(AUXINPUT0_PN)
+#define AUXINPUT0_PIN           26
+
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PN          0
-#define SAFETY_DOOR_PORT        port(SAFETY_DOOR_PN)
-#define SAFETY_DOOR_PIN         26
+#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
 #endif
 
-#define CONTROL_INMODE          GPIO_BITBAND
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT        AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN         AUXINPUT0_PIN
+#endif
 
 #define SD_SPI_PORT             1
 #define SD_CS_PN                0
@@ -212,6 +220,5 @@ void board_init (void);
 #define MPG_MODE_PN             2
 #define MPG_MODE_PORT           port(MPG_MODE_PN)
 #define MPG_MODE_PIN            7    // E1 MOSFET (P2.7)
-
 
 /**/

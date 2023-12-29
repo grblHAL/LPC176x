@@ -189,13 +189,21 @@
 #define CYCLE_START_PORT        port(CYCLE_START_PN)
 #define CYCLE_START_PIN         15
 
+#define CONTROL_INMODE          GPIO_BITBAND
+
+#define AUXINPUT0_PN            2
+#define AUXINPUT0_PORT          port(AUXINPUT0_PN)
+#define AUXINPUT0_PIN           8
+
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PN          2
-#define SAFETY_DOOR_PORT        port(SAFETY_DOOR_PN)
-#define SAFETY_DOOR_PIN         8
+#define SAFETY_DOOR_PORT        AUXINPUT0_PORT
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
 #endif
 
-#define CONTROL_INMODE          GPIO_BITBAND
+#if MOTOR_FAULT_ENABLE
+#define MOTOR_FAULT_PORT        AUXINPUT0_PORT
+#define MOTOR_FAULT_PIN         AUXINPUT0_PIN
+#endif
 
 #if SDCARD_ENABLE
 #define SD_SPI_PORT             0
