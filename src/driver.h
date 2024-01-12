@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2022 Terje Io
+  Copyright (c) 2018-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -180,6 +180,7 @@ typedef struct {
     pin_irq_mode_t irq_mode;
     pin_mode_t cap;
     ioport_interrupt_callback_ptr interrupt_callback;
+    aux_ctrl_t *aux_ctrl;
     const char *description;
 } input_signal_t;
 
