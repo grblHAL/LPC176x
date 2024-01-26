@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ void board_init (void);
 // Define probe switch input pin.
 #define PROBE_PN                0
 #define PROBE_PORT              port(PROBE_PN)
-#define PROBE_PIN               12
+#define PROBE_PIN               17
 
 // Define spindle enable and spindle direction output pins.
 #define SPINDLE_ENABLE_PN       1

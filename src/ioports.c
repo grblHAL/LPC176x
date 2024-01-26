@@ -42,6 +42,28 @@ static void digital_out (uint8_t port, bool on)
     }
 }
 
+static float digital_out_state (xbar_t *pin)
+{
+    float value = -1.0f;
+
+    uint8_t port = pin->function - Output_Aux0;
+    if(port < digital.out.n_ports)
+        value = (float)(DIGITAL_IN(aux_out[port].port, aux_out[port].bit) ^ aux_out[port].mode.inverted);
+
+    return value;
+}
+
+static float digital_in_state (xbar_t *pin)
+{
+    float value = -1.0f;
+
+    uint8_t port = pin->function - Input_Aux0;
+    if(port < digital.in.n_ports)
+        value = (float)(DIGITAL_IN(aux_in[port].port, aux_in[port].bit) ^ aux_in[port].mode.inverted);
+
+    return value;
+}
+
 int32_t get_input (const input_signal_t *input, bool invert, wait_mode_t wait_mode, float timeout)
 {
     if(wait_mode == WaitMode_Immediate)
@@ -79,7 +101,7 @@ int32_t get_input (const input_signal_t *input, bool invert, wait_mode_t wait_mo
         bool wait_for = wait_mode != WaitMode_Low;
 
         do {
-            if((DIGITAL_IN(input->port, input->bit) ^ invert) == wait_for){
+            if((DIGITAL_IN(input->port, input->bit) ^ invert) == wait_for) {
                 value = DIGITAL_IN(input->port, input->bit) ^ invert;
                 break;
             }
@@ -162,6 +184,7 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
             port = ioports_map(digital.in, port);
             pin.mode = aux_in[port].mode;
             pin.cap = aux_in[port].cap;
+            pin.cap.invert = On;
             pin.cap.claimable = !pin.mode.claimed;
             pin.function = aux_in[port].id;
             pin.group = aux_in[port].group;
@@ -169,6 +192,7 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
             pin.bit = aux_in[port].bit;
             pin.port = (void *)aux_in[port].port;
             pin.description = aux_in[port].description;
+            pin.get_value = digital_in_state;
             info = &pin;
         }
 
@@ -176,12 +200,15 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
             port = ioports_map(digital.out, port);
             pin.mode = aux_out[port].mode;
             XBAR_SET_CAP(pin.cap, pin.mode);
+            pin.cap.invert = On;
+            pin.mode.inverted = (settings.ioport.invert_out.mask >> port) & 0x01;
             pin.function = aux_out[port].id;
             pin.group = aux_out[port].group;
             pin.pin = aux_out[port].pin;
             pin.bit = 1 << aux_out[port].pin;
             pin.port = (void *)aux_out[port].port;
             pin.description = aux_out[port].description;
+            pin.get_value = digital_out_state;
             info = &pin;
         }
     }
@@ -291,9 +318,11 @@ static void on_setting_changed (setting_id_t id)
         case Settings_IoPort_InvertIn:
             port = digital.in.n_ports;
             do {
-                if(aux_in[--port].aux_ctrl) {
+                port--;
+                aux_in[port].mode.inverted = !!(settings.ioport.invert_in.mask & (1 << port));
+                if(aux_in[port].aux_ctrl) {
                     write = true;
-                    if(settings.ioport.invert_in.mask & (1 << port))
+                    if(aux_in[port].mode.inverted)
                         settings.control_invert.mask |= aux_in[port].aux_ctrl->cap.mask;
                     else
                         settings.control_invert.mask &= ~aux_in[port].aux_ctrl->cap.mask;
@@ -306,8 +335,9 @@ static void on_setting_changed (setting_id_t id)
                 port = digital.out.n_ports;
                 do {
                     port--;
+                    aux_out[port].mode.inverted = !!(settings.ioport.invert_out.mask & (1 << port));
                     if(((settings.ioport.invert_out.mask >> port) & 0x01) != ((invert_digital_out.mask >> port) & 0x01))
-                        DIGITAL_OUT(aux_out[port].port, aux_out[port].pin, !DIGITAL_IN(aux_out[port].port, aux_out[port].pin));
+                        DIGITAL_OUT(aux_out[port].port, aux_out[port].bit, !DIGITAL_IN(aux_out[port].port, aux_out[port].bit));
                 } while(port);
 
                 invert_digital_out = settings.ioport.invert_out;
@@ -323,6 +353,7 @@ static void on_setting_changed (setting_id_t id)
                         settings.ioport.invert_in.mask |= (1 << port);
                     else
                         settings.ioport.invert_in.mask &= ~(1 << port);
+                    aux_in[port].mode.inverted = !!(settings.ioport.invert_in.mask & (1 << port));
                 }
             } while(port);
             break;
@@ -338,14 +369,15 @@ static void on_setting_changed (setting_id_t id)
 static void on_settings_loaded (void)
 {
 //    aux_set_pullup();
-    uint_fast8_t idx = digital.out.n_ports;
+    uint_fast8_t port = digital.out.n_ports;
 
     invert_digital_out = settings.ioport.invert_out;
 
     if(digital.out.n_ports) do {
-        idx--;
-        DIGITAL_OUT(aux_out[idx].port, aux_out[idx].pin, (settings.ioport.invert_out.mask >> idx) & 0x01);
-    } while(idx);
+        port--;
+        aux_out[port].mode.inverted = !!(settings.ioport.invert_out.mask & (1 << port));
+        DIGITAL_OUT(aux_out[port].port, aux_out[port].bit, aux_out[port].mode.inverted);
+    } while(port);
 }
 
 void ioports_init (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs)

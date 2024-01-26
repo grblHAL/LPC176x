@@ -1107,14 +1107,14 @@ static uint_fast16_t valueSetAtomic (volatile uint_fast16_t *ptr, uint_fast16_t 
 
 #if MPG_MODE == 1
 
-static void mpg_select (sys_state_t state)
+static void mpg_select (void *data)
 {
     stream_mpg_enable(DIGITAL_IN(mpg_pin->port, mpg_pin->bit) == 0);
 
     gpio_int_enable(mpg_pin, mpg_pin->mode.irq_mode = (sys.mpg_mode ? IRQ_Mode_Rising : IRQ_Mode_Falling));
 }
 
-static void mpg_enable (sys_state_t state)
+static void mpg_enable (void *data)
 {
     if(sys.mpg_mode == DIGITAL_IN(mpg_pin->port, mpg_pin->bit))
         stream_mpg_enable(true);
@@ -1615,7 +1615,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "240119";
+    hal.driver_version = "240125";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1723,7 +1723,7 @@ bool driver_init (void) {
             if(aux_inputs.pins.inputs == NULL)
                 aux_inputs.pins.inputs = input;
             input->id = (pin_function_t)(Input_Aux0 + aux_inputs.n_pins++);
-            input->cap.pull_mode = PullMode_UpDown;
+            input->mode.pull_mode = input->cap.pull_mode = PullMode_Up;
             input->cap.irq_mode = input->port == LPC_GPIO0 || input->port == LPC_GPIO2 ? IRQ_Mode_Edges : IRQ_Mode_None;
 #if SAFETY_DOOR_ENABLE
             if(input->port == SAFETY_DOOR_PORT && input->pin == SAFETY_DOOR_PIN && input->cap.irq_mode != IRQ_Mode_None) {
@@ -1836,10 +1836,10 @@ bool driver_init (void) {
 #if MPG_MODE == 1
   #if KEYPAD_ENABLE == 2
     if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, keypad_enqueue_keycode)))
-        protocol_enqueue_rt_command(mpg_enable);
+        protocol_enqueue_foreground_task(mpg_enable, NULL);
   #else
     if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, NULL)))
-        protocol_enqueue_rt_command(mpg_enable);
+        protocol_enqueue_foreground_task(mpg_enable, NULL);
   #endif
 #elif MPG_MODE == 2
     hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), false, keypad_enqueue_keycode);
@@ -1972,7 +1972,7 @@ void GPIO_IRQHandler (void)
 #if MPG_MODE == 1
                 case PinGroup_MPG:
                     gpio_int_enable(&gpio0_signals[i], IRQ_Mode_None);
-                    protocol_enqueue_rt_command(mpg_select);
+                    protocol_enqueue_foreground_task(mpg_select, NULL);
                     break;
 #endif
                     case PinGroup_AuxInput:
@@ -2008,7 +2008,7 @@ void GPIO_IRQHandler (void)
 #if MPG_MODE == 1
                 case PinGroup_MPG:
                     gpio_int_enable(&gpio2_signals[i], IRQ_Mode_None);
-                    protocol_enqueue_rt_command(mpg_select);
+                    protocol_enqueue_foreground_task(mpg_select, NULL);
                     break;
 #endif
                     case PinGroup_AuxInput:
