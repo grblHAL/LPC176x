@@ -3,20 +3,20 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2023 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 // NOTE: Only one board may be enabled!
@@ -49,7 +49,9 @@
 // **********************
 //#define MODBUS_ENABLE            1 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
 //#define SDCARD_ENABLE            1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
-//#define MPG_ENABLE               1 // Enable MPG interface. Requires serial port and one handshake pin.
+//#define MPG_ENABLE               1 // Enable MPG interface. Requires a serial port and means to switch between normal and MPG mode.
+                                     // 1: Mode switching is by handshake pin.
+                                     // 2: Mode switching is by the CMD_MPG_MODE_TOGGLE command character.
 //#define LASER_COOLANT_ENABLE     1 // Laser coolant plugin. To be completed.
 //#define LB_CLUSTERS_ENABLE       1 // LaserBurn cluster support.
 //#define TRINAMIC_ENABLE       2130 // Uncomment to enable Trinamic TMC2130 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
