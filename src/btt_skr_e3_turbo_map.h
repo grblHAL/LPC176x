@@ -3,20 +3,20 @@
 
   Part of grblHAL
 
-  Copyright (c) 2021 Dimitris Zervas, Terje Io
+  Copyright (c) 2021-2024 Dimitris Zervas, Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 // NOTE:
@@ -130,11 +130,6 @@
 #define M4_STANDBY_PIN          13
 #endif
 
-// Define probe switch input pin.
-#define PROBE_PN                1
-#define PROBE_PORT              port(PROBE_PN)
-#define PROBE_PIN               22
-
 // Define driver spindle pins
 
 #if DRIVER_SPINDLE_PWM_ENABLE
@@ -194,6 +189,14 @@
 #define AUXINPUT0_PN            2
 #define AUXINPUT0_PORT          port(AUXINPUT0_PN)
 #define AUXINPUT0_PIN           8
+#define AUXINPUT1_PN            1
+#define AUXINPUT1_PORT          port(AUXINPUT1_PN)
+#define AUXINPUT1_PIN           22
+
+#if PROBE_ENABLE
+#define PROBE_PORT              AUXINPUT1_PORT
+#define PROBE_PIN               AUXINPUT1_PIN
+#endif
 
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PORT        AUXINPUT0_PORT

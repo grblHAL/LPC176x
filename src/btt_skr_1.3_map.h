@@ -5,18 +5,18 @@
 
   Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 // NOTE:
@@ -133,11 +133,6 @@ void board_init (void);
 #define M4_ENABLE_PIN       10
 #endif
 
-// Define probe switch input pin.
-#define PROBE_PN                0
-#define PROBE_PORT              port(PROBE_PN)
-#define PROBE_PIN               17
-
 // Define spindle enable and spindle direction output pins.
 #define SPINDLE_ENABLE_PN       1
 #define SPINDLE_ENABLE_PORT     port(SPINDLE_ENABLE_PN)
@@ -206,14 +201,21 @@ void board_init (void);
 
 #define CONTROL_INMODE          GPIO_BITBAND
 
-#if MPG_ENABLE
-#define MPG_MODE_PN             2
-#define MPG_MODE_PORT           port(MPG_MODE_PN)
-#define MPG_MODE_PIN            0
-#elif BLUETOOTH_ENABLE == 2
 #define AUXINPUT0_PN            2
 #define AUXINPUT0_PORT          port(AUXINPUT0_PN)
 #define AUXINPUT0_PIN           0
+#define AUXINPUT1_PN            0
+#define AUXINPUT1_PORT          port(AUXINPUT1_PN)
+#define AUXINPUT1_PIN           17
+
+#if PROBE_ENABLE
+#define PROBE_PORT              AUXINPUT1_PORT
+#define PROBE_PIN               AUXINPUT1_PIN
+#endif
+
+#if MPG_ENABLE == 1
+#define MPG_MODE_PORT           AUXINPUT0_PORT
+#define MPG_MODE_PIN            AUXINPUT0_PIN
 #endif
 
 #if SDCARD_ENABLE

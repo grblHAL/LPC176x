@@ -3,20 +3,20 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 // NOTE:
@@ -127,11 +127,6 @@ void board_init (void);
 #define M4_ENABLE_PIN           29
 #endif
 
-// Define probe switch input pin.
-#define PROBE_PN                1
-#define PROBE_PORT              port(PROBE_PN)
-#define PROBE_PIN               23
-
 // Define driver spindle pins
 
 #if DRIVER_SPINDLE_PWM_ENABLE
@@ -195,13 +190,30 @@ void board_init (void);
 #define AUXINPUT0_PN            0
 #define AUXINPUT0_PORT          port(AUXINPUT0_PN)
 #define AUXINPUT0_PIN           26
+#define AUXINPUT1_PN            2
+#define AUXINPUT1_PORT          port(AUXINPUT1_PN) // E1 MOSFET (P2.7)
+#define AUXINPUT1_PIN           7
+#define AUXINPUT2_PN            1
+#define AUXINPUT2_PORT          port(AUXINPUT2_PN)
+#define AUXINPUT2_PIN           23
+
+#if PROBE_ENABLE
+#define PROBE_PORT              AUXINPUT2_PORT
+#define PROBE_PIN               AUXINPUT2_PIN
+#endif
+
+#if MPG_MODE == 1
+#define MPG_MODE_PORT           AUXINPUT1_PORT
+#define MPG_MODE_PIN            AUXINPUT1_PIN
+#elif I2C_STROBE_ENABLE
+#define I2C_STROBE_PORT         AUXINPUT1_PORT
+#define I2C_STROBE_PIN          AUXINPUT1_PIN
+#endif
 
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PORT        AUXINPUT0_PORT
 #define SAFETY_DOOR_PIN         AUXINPUT0_PIN
-#endif
-
-#if MOTOR_FAULT_ENABLE
+#elif MOTOR_FAULT_ENABLE
 #define MOTOR_FAULT_PORT        AUXINPUT0_PORT
 #define MOTOR_FAULT_PIN         AUXINPUT0_PIN
 #endif
@@ -213,12 +225,5 @@ void board_init (void);
 
 #define MCP44XX_I2C_ADDR        0b0101100
 
-#define I2C_STROBE_PN           2
-#define I2C_STROBE_PORT         port(I2C_STROBE_PN)
-#define I2C_STROBE_PIN          7    // E1 MOSFET (P2.7)
-
-#define MPG_MODE_PN             2
-#define MPG_MODE_PORT           port(MPG_MODE_PN)
-#define MPG_MODE_PIN            7    // E1 MOSFET (P2.7)
 
 /**/
