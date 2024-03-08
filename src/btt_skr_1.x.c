@@ -124,27 +124,27 @@ static void add_cs_pin (xbar_t *gpio)
         switch(gpio->function) {
 
             case Output_MotorChipSelectX:
-                cs[X_AXIS].bit = gpio->bit;
+                cs[X_AXIS].bit = 1U << gpio->pin;
                 cs[X_AXIS].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectY:
-                cs[Y_AXIS].bit = gpio->bit;
+                cs[Y_AXIS].bit = 1U << gpio->pin;
                 cs[Y_AXIS].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectZ:
-                cs[Z_AXIS].bit = gpio->bit;
+                cs[Z_AXIS].bit = 1U << gpio->pin;
                 cs[Z_AXIS].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM3:
-                cs[3].bit = gpio->bit;
+                cs[3].bit = 1U << gpio->pin;
                 cs[3].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM4:
-                cs[4].bit = gpio->bit;
+                cs[4].bit = 1U << gpio->pin;
                 cs[4].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM5:
-                cs[5].bit = gpio->bit;
+                cs[5].bit = 1U << gpio->pin;
                 cs[5].port = (LPC_GPIO_T *)gpio->port;
                 break;
 
