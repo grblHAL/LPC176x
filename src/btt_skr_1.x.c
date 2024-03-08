@@ -136,7 +136,7 @@ static void add_cs_pin (xbar_t *gpio)
                 cs[Z_AXIS].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM3:
-                cs[3].bit = gpio->bit;
+                cs[3].bit = 1U << gpio->pin;
                 cs[3].port = (LPC_GPIO_T *)gpio->port;
                 break;
             case Output_MotorChipSelectM4:
