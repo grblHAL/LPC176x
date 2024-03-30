@@ -1653,7 +1653,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "2400205";
+    hal.driver_version = "240330";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1740,8 +1740,11 @@ bool driver_init (void) {
 #endif
     hal.limits_cap = get_limits_cap();
     hal.home_cap = get_home_cap();
-#ifdef COOLANT_MIST_PORT
-    hal.driver_cap.mist_control = On;
+#ifdef COOLANT_FLOOD_PIN
+    hal.coolant_cap.flood = On;
+#endif
+#ifdef COOLANT_MIST_PIN
+    hal.coolant_cap.mist = On;
 #endif
     hal.driver_cap.software_debounce = On;
     hal.driver_cap.step_pulse_delay = On;
