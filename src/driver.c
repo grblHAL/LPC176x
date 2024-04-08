@@ -417,7 +417,7 @@ static void stepperEnable (axes_signals_t enable)
 // Starts stepper driver ISR timer and forces a stepper driver interrupt callback
 static void stepperWakeUp (void)
 {
-    stepperEnable((axes_signals_t){AXES_BITMASK});
+    hal.stepper.enable((axes_signals_t){AXES_BITMASK});
 
     STEPPER_TIMER->TCR = 0b10;                      // reset
     STEPPER_TIMER->MR[0] = hal.f_step_timer / 500;  // ~2ms delay to allow drivers time to wake up.
@@ -1653,7 +1653,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "240330";
+    hal.driver_version = "240408";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
