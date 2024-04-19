@@ -321,27 +321,27 @@ static void add_uart_pin (xbar_t *gpio, void *data)
 
         case Bidirectional_MotorUARTX:
             uart[X_AXIS].port = (LPC_GPIO_T*) gpio->port;
-            uart[X_AXIS].bit = gpio->bit;
+            uart[X_AXIS].bit = 1U << gpio->pin;
             break;
 
         case Bidirectional_MotorUARTY:
             uart[Y_AXIS].port = (LPC_GPIO_T*) gpio->port;
-            uart[Y_AXIS].bit = gpio->bit;
+            uart[Y_AXIS].bit = 1U << gpio->pin;
             break;
 
         case Bidirectional_MotorUARTZ:
             uart[Z_AXIS].port = (LPC_GPIO_T*) gpio->port;
-            uart[Z_AXIS].bit = gpio->bit;
+            uart[Z_AXIS].bit = 1U << gpio->pin;
             break;
 
         case Bidirectional_MotorUARTM3:
             uart[3].port = (LPC_GPIO_T*) gpio->port;
-            uart[3].bit = gpio->bit;
+            uart[3].bit = 1U << gpio->pin;
             break;
 
         case Bidirectional_MotorUARTM4:
             uart[4].port = (LPC_GPIO_T*) gpio->port;
-            uart[4].bit = gpio->bit;
+			uart[4].bit = 1U << gpio->pin;
             break;
 
         default:
