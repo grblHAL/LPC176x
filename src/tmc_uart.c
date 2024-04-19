@@ -341,7 +341,7 @@ static void add_uart_pin (xbar_t *gpio, void *data)
 
         case Bidirectional_MotorUARTM4:
             uart[4].port = (LPC_GPIO_T*) gpio->port;
-			uart[4].bit = 1U << gpio->pin;
+            uart[4].bit = 1U << gpio->pin;
             break;
 
         default:
