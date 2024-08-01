@@ -73,21 +73,21 @@
 // P0.29, P0.30 must have same direction as used for USB operation.
 
 #ifdef SMOOTHIEBOARD
-  #include "smoothieboard_map.h"
+  #include "boards/smoothieboard_map.h"
 #elif defined(BOARD_RAMPS_16)
-  #include "ramps_1.6_map.h"
+  #include "boards/ramps_1.6_map.h"
 #elif defined(BOARD_BTT_SKR_13)
-  #include "btt_skr_1.3_map.h"
+  #include "boards/btt_skr_1.3_map.h"
 #elif defined(BOARD_BTT_SKR_14_TURBO)
-  #include "btt_skr_1.4_turbo_map.h"
+  #include "boards/btt_skr_1.4_turbo_map.h"
 #elif defined BOARD_BTT_SKR_E3_TURBO
-  #include "btt_skr_e3_turbo_map.h"
+  #include "boards/btt_skr_e3_turbo_map.h"
 #elif defined(BOARD_MKS_SBASE_13)
-  #include "mks_sbase_map.h"
+  #include "boards/mks_sbase_map.h"
 #elif defined(BOARD_MY_MACHINE)
-  #include "my_machine_map.h"
+  #include "boards/my_machine_map.h"
 #else
-  #include "generic_map.h"
+  #include "boards/generic_map.h"
 #endif
 
 #if SAFETY_DOOR_ENABLE && !defined(SAFETY_DOOR_PIN)
