@@ -75,7 +75,8 @@ static spindle_pwm_t spindle_pwm;
 static axes_signals_t next_step_outbits;
 static pin_group_pins_t limit_inputs = {0};
 static delay_t delay = { .ms = 1, .callback = NULL }; // NOTE: initial ms set to 1 for "resetting" systick timer on startup
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
+static uint8_t mpg_port;
 static input_signal_t *mpg_pin = NULL;
 #endif
 
@@ -86,9 +87,6 @@ static input_signal_t *door_pin = NULL;
 #endif
 #ifdef PROBE_PIN
 static uint8_t probe_port;
-#endif
-#ifdef MPG_MODE_PIN
-static uint8_t mpg_port;
 #endif
 
 static void aux_irq_handler (uint8_t port, bool state);
@@ -870,7 +868,7 @@ static probe_state_t probeGetState (void)
 }
 #endif // PROBE_ENABLE
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 
 static void mpg_select (void *data)
 {
@@ -889,7 +887,7 @@ static void mpg_enable (void *data)
     //gpio_int_enable(mpg_pin, mpg_pin->mode.irq_mode = (sys.mpg_mode ? IRQ_Mode_Rising : IRQ_Mode_Falling));
 }
 
-#endif //  MPG_MODE == 1
+#endif // MPG_ENABLE == 1
 
 #if AUX_CONTROLS_ENABLED
 
@@ -1383,7 +1381,7 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
                         input->mode.irq_mode = IRQ_Mode_None;
                         input->debounce = false;
                         break;
-  #if MPG_MODE == 1
+  #if MPG_ENABLE == 1
                     case Input_ModeSelect:
                         pullup = true;
                         mpg_pin = input;
@@ -1644,7 +1642,7 @@ bool driver_init (void) {
     SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk|SysTick_CTRL_TICKINT_Msk|SysTick_CTRL_ENABLE_Msk;
     NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
     // Drive MPG mode input pin low until setup complete
     Chip_IOCON_PinMux((LPC_IOCON_T *)LPC_IOCON_BASE, gpio_to_pn(MPG_MODE_PORT), MPG_MODE_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
     //
@@ -1653,7 +1651,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "240408";
+    hal.driver_version = "240816";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1708,10 +1706,13 @@ bool driver_init (void) {
     hal.periph_port.register_pin = registerPeriphPin;
     hal.periph_port.set_pin_description = setPeriphPinDescription;
 
+    serialRegisterStreams();
+
 #if USB_SERIAL_CDC
     stream_connect(usbInit());
 #else
-    stream_connect(serialInit(BAUD_RATE));
+    if(!stream_connect_instance(SERIAL_STREAM, BAUD_RATE))
+        while(true); // Cannot boot if no communication channel is available!
 #endif
 
 #if I2C_ENABLE
@@ -1806,8 +1807,6 @@ bool driver_init (void) {
     board_init();
 #endif
 
-    serialRegisterStreams();
-
 #if DRIVER_SPINDLE_ENABLE
 
  #if DRIVER_SPINDLE_PWM_ENABLE
@@ -1850,23 +1849,17 @@ bool driver_init (void) {
 
 #endif // DRIVER_SPINDLE_ENABLE
 
-#if MPG_MODE == 1
-  #if KEYPAD_ENABLE == 2
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode)))
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
-  #else
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL)))
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
-  #endif
-#elif MPG_MODE == 2
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode);
-#elif MPG_MODE == 3
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
-//#elif KEYPAD_ENABLE == 2
-//    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode, "Keypad");
-#endif
-
 #include "grbl/plugins_init.h"
+
+#if MPG_ENABLE == 1
+    if(!hal.driver_cap.mpg_mode)
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL);
+    if(hal.driver_cap.mpg_mode)
+        protocol_enqueue_foreground_task(mpg_enable, NULL);
+#elif MPG_ENABLE == 2
+    if(!hal.driver_cap.mpg_mode)
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
+#endif
 
     // No need to move version check before init.
     // Compiler will fail any signature mismatch for existing entries.
@@ -1990,7 +1983,7 @@ void GPIO_IRQHandler (void)
                         ioports_event(&gpio0_signals[i]);
                         break;
 #if !AUX_CONTROLS_ENABLED
-  #if MPG_MODE == 1
+  #if MPG_ENABLE == 1
                     case PinGroup_MPG:
                         gpio_int_enable(&gpio0_signals[i], IRQ_Mode_None);
                         protocol_enqueue_foreground_task(mpg_select, NULL);
@@ -2028,7 +2021,7 @@ void GPIO_IRQHandler (void)
                         break;
 
 #if !AUX_CONTROLS_ENABLED
-   #if MPG_MODE == 1
+   #if MPG_ENABLE == 1
                     case PinGroup_MPG:
                         gpio_int_enable(&gpio2_signals[i], IRQ_Mode_None);
                         protocol_enqueue_foreground_task(mpg_select, NULL);

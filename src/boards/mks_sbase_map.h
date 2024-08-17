@@ -202,7 +202,7 @@ void board_init (void);
 #define PROBE_PIN               AUXINPUT2_PIN
 #endif
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 #define MPG_MODE_PORT           AUXINPUT1_PORT
 #define MPG_MODE_PIN            AUXINPUT1_PIN
 #elif I2C_STROBE_ENABLE

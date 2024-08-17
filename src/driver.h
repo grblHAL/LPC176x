@@ -103,11 +103,11 @@
 
 // End configuration
 
-#if MPG_MODE && !USB_SERIAL_CDC
-#error "MPG_MODE can only be enabled with USB_SERIAL_CDC enabled!"
+#if MPG_ENABLE && !USB_SERIAL_CDC
+#error "MPG mode can only be enabled with USB_SERIAL_CDC enabled!"
 #endif
 
-#if MPG_MODE == 1 && !defined(MPG_MODE_PIN)
+#if MPG_ENABLE == 1 && !defined(MPG_MODE_PIN)
 #error "MPG_MODE_PIN must be defined!"
 #endif
 

@@ -1,29 +1,25 @@
 /*
-  i2c.c - I2C support for EEPROM
+  i2c.c - I2C support
 
   Part of grblHAL driver for NXP LPC176x
 
-  Copyright (c) 2019-2021 Terje Io
+  Copyright (c) 2019-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "i2c.h"
-
-#if KEYPAD_ENABLE
-#include "keypad/keypad.h"
-#endif
 
 #if I2C_ENABLE
 
@@ -89,8 +85,6 @@ void i2c_init (void)
     hal.periph_port.register_pin(&sda);
 }
 
-#endif
-
 #if EEPROM_ENABLE
 
 nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
@@ -139,3 +133,18 @@ void i2c_write (uint8_t addr, uint8_t *data, uint8_t len)
 
     Chip_I2C_MasterTransfer(I2C1, &xfer);
 }
+
+#if KEYPAD_ENABLE == 1
+
+void i2c_get_keycode (uint_fast16_t addr, keycode_callback_ptr callback)
+{
+    uint8_t keycode;
+
+    // This should be changed to be asynchronous!
+    if(Chip_I2C_MasterRead(I2C1, (uint8_t)addr, &keycode, 1) == 1)
+        callback(keycode);
+}
+
+#endif
+
+#endif // I2C_ENABLE

@@ -4,20 +4,20 @@
 
   Part of grblHAL
 
-  Copyright (c) 2017-2023 Terje Io
+  Copyright (c) 2017-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
@@ -90,6 +90,47 @@ void serialRegisterStreams (void)
         .n_streams = sizeof(serial) / sizeof(io_stream_properties_t),
         .streams = serial,
     };
+
+#if SERIAL_MOD == 3
+
+    static const periph_pin_t tx = {
+        .function = Output_TX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO4,
+        .pin = 28,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
+
+    static const periph_pin_t rx = {
+        .function = Input_RX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO4,
+        .pin = 29,
+        .mode = { .mask = PINMODE_NONE }
+    };
+
+#else
+
+    static const periph_pin_t tx = {
+        .function = Output_TX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO0,
+        .pin = 2,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
+
+    static const periph_pin_t rx = {
+        .function = Input_RX,
+        .group = PinGroup_UART,
+        .port = LPC_GPIO0,
+        .pin = 3,
+        .mode = { .mask = PINMODE_NONE }
+    };
+
+#endif
+
+    hal.periph_port.register_pin(&rx);
+    hal.periph_port.register_pin(&tx);
 
     stream_register_streams(&streams);
 }
@@ -313,47 +354,6 @@ const io_stream_t *serialInit (uint32_t baud_rate)
     /* preemption = 3, sub-priority = 1 */
     NVIC_SetPriority(SERIAL_MODULE_INT, 3);
     NVIC_EnableIRQ(SERIAL_MODULE_INT);
-
-#if SERIAL_MOD == 3
-
-    static const periph_pin_t tx = {
-        .function = Output_TX,
-        .group = PinGroup_UART,
-        .port = LPC_GPIO4,
-        .pin = 28,
-        .mode = { .mask = PINMODE_OUTPUT }
-    };
-
-    static const periph_pin_t rx = {
-        .function = Input_RX,
-        .group = PinGroup_UART,
-        .port = LPC_GPIO4,
-        .pin = 29,
-        .mode = { .mask = PINMODE_NONE }
-    };
-
-#else
-
-    static const periph_pin_t tx = {
-        .function = Output_TX,
-        .group = PinGroup_UART,
-        .port = LPC_GPIO0,
-        .pin = 2,
-        .mode = { .mask = PINMODE_OUTPUT }
-    };
-
-    static const periph_pin_t rx = {
-        .function = Input_RX,
-        .group = PinGroup_UART,
-        .port = LPC_GPIO0,
-        .pin = 3,
-        .mode = { .mask = PINMODE_NONE }
-    };
-
-#endif
-
-    hal.periph_port.register_pin(&rx);
-    hal.periph_port.register_pin(&tx);
 
 #ifdef RTS_PORT
     RTS_PORT->DIR |= RTS_BIT;

@@ -39,6 +39,10 @@ void board_init (void);
 #error "This board cannot be used with current EEPROM code!"
 #endif
 
+#if I2C_ENABLE
+#error "This board does not support I2C!"
+#endif
+
 // Define step pulse output pins.
 #define X_STEP_PN               2
 #define X_STEP_PORT             port(X_STEP_PN)
