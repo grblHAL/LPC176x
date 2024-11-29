@@ -1606,7 +1606,7 @@ static bool driver_setup (settings_t *settings)
 
  // Set defaults
 
-    IOInitDone = settings->version == 22;
+    IOInitDone = settings->version.id == 22;
 
     hal.settings_changed(settings, (settings_changed_flags_t){0});
 
