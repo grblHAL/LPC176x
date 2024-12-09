@@ -986,18 +986,18 @@ static bool aux_claim_explicit (aux_ctrl_t *aux_ctrl)
 
 inline static void spindle_off (void)
 {
-    DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT, settings.spindle.invert.on);
+    DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT, settings.pwm_spindle.invert.on);
 }
 
 inline static void spindle_on (void)
 {
-    DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT, !settings.spindle.invert.on);
+    DIGITAL_OUT(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT, !settings.pwm_spindle.invert.on);
 }
 
 inline static void spindle_dir (bool ccw)
 {
 #ifdef SPINDLE_DIRECTION_PIN
-    DIGITAL_OUT(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT, ccw ^ settings.spindle.invert.ccw);
+    DIGITAL_OUT(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT, ccw ^ settings.pwm_spindle.invert.ccw);
 #else
     UNUSED(ccw);
 #endif
@@ -1024,12 +1024,12 @@ static void spindleSetSpeed (spindle_ptrs_t *spindle, uint_fast16_t pwm_value)
     if (pwm_value == spindle->context.pwm->off_value) {
         pwmEnabled = false;
         if(spindle->context.pwm->settings->flags.enable_rpm_controlled) {
-            if(spindle->context.pwm->cloned)
+            if(spindle->context.pwm->flags.cloned)
                 spindle_dir(false);
             else
                 spindle_off();
         }
-        if(spindle->context.pwm->always_on) {
+        if(spindle->context.pwm->flags.always_on) {
             pwm_set_width(&SPINDLE_PWM_CHANNEL, spindle->context.pwm->off_value);
             pwm_enable(&SPINDLE_PWM_CHANNEL);
         } else {
@@ -1038,7 +1038,7 @@ static void spindleSetSpeed (spindle_ptrs_t *spindle, uint_fast16_t pwm_value)
         }
     } else {
         if(!pwmEnabled) {
-            if(spindle->context.pwm->cloned)
+            if(spindle->context.pwm->flags.cloned)
                 spindle_dir(true);
             else
                 spindle_on();
@@ -1058,7 +1058,7 @@ static uint_fast16_t spindleGetPWM (spindle_ptrs_t *spindle, float rpm)
 static void spindleSetStateVariable (spindle_ptrs_t *spindle, spindle_state_t state, float rpm)
 {
 #ifdef SPINDLE_DIRECTION_PIN
-    if (state.on || spindle->context.pwm->cloned)
+    if(state.on || spindle->context.pwm->flags.cloned)
         spindle_dir(state.ccw);
 #endif
     if(!spindle->context.pwm->settings->flags.enable_rpm_controlled) {
@@ -1068,7 +1068,7 @@ static void spindleSetStateVariable (spindle_ptrs_t *spindle, spindle_state_t st
             spindle_off();
     }
 
-    spindleSetSpeed(spindle, state.on || (state.ccw && spindle->context.pwm->cloned)
+    spindleSetSpeed(spindle, state.on || (state.ccw && spindle->context.pwm->flags.cloned)
                               ? spindle->context.pwm->compute_value(spindle->context.pwm, rpm, false)
                               : spindle->context.pwm->off_value);
 }
@@ -1078,7 +1078,7 @@ bool spindleConfig (spindle_ptrs_t *spindle)
     if(spindle == NULL)
         return false;
 
-    if(spindle_precompute_pwm_values(spindle, &spindle_pwm, &settings.spindle, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1))) {
+    if(spindle_precompute_pwm_values(spindle, &spindle_pwm, &settings.pwm_spindle, SystemCoreClock / Chip_Clock_GetPCLKDiv(SYSCTL_PCLK_PWM1))) {
         pwm_init(&SPINDLE_PWM_CHANNEL, SPINDLE_PWM_USE_PRIMARY_PIN, SPINDLE_PWM_USE_SECONDARY_PIN, spindle_pwm.period, 0);
         spindle->set_state = spindleSetStateVariable;
     } else {
@@ -1099,13 +1099,13 @@ static spindle_state_t spindleGetState (spindle_ptrs_t *spindle)
 {
     UNUSED(spindle);
 
-    spindle_state_t state = {settings.spindle.invert.mask};
+    spindle_state_t state = {settings.pwm_spindle.invert.mask};
 
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PORT, SPINDLE_ENABLE_BIT);
 #ifdef SPINDLE_DIRECTION_PIN
     state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PORT, SPINDLE_DIRECTION_BIT);
 #endif
-    state.value ^= settings.spindle.invert.mask;
+    state.value ^= settings.pwm_spindle.invert.mask;
 
     return state;
 }
@@ -1115,7 +1115,7 @@ static spindle_state_t spindleGetState (spindle_ptrs_t *spindle)
 // Start/stop coolant (and mist if enabled)
 static void coolantSetState (coolant_state_t mode)
 {
-    mode.value ^= settings.coolant_invert.mask;
+    mode.value ^= settings.coolant.invert.mask;
 
     DIGITAL_OUT(COOLANT_FLOOD_PORT, COOLANT_FLOOD_BIT, mode.flood);
 
@@ -1127,13 +1127,13 @@ static void coolantSetState (coolant_state_t mode)
 // Returns coolant state in a coolant_state_t variable
 static coolant_state_t coolantGetState (void)
 {
-    coolant_state_t state = {settings.coolant_invert.mask};
+    coolant_state_t state = {settings.coolant.invert.mask};
 
     state.flood = DIGITAL_IN(COOLANT_FLOOD_PORT, COOLANT_FLOOD_BIT);
 #ifdef COOLANT_MIST_PORT
     state.mist  = DIGITAL_IN(COOLANT_MIST_PORT, COOLANT_MIST_BIT);
 #endif
-    state.value ^= settings.coolant_invert.mask;
+    state.value ^= settings.coolant.invert.mask;
 
     return state;
 }
@@ -1606,7 +1606,7 @@ static bool driver_setup (settings_t *settings)
 
  // Set defaults
 
-    IOInitDone = settings->version.id == 22;
+    IOInitDone = settings->version.id == 23;
 
     hal.settings_changed(settings, (settings_changed_flags_t){0});
 
@@ -1651,7 +1651,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "240928";
+    hal.driver_version = "241208";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
