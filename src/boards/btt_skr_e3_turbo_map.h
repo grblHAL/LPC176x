@@ -130,46 +130,49 @@
 #define M4_STANDBY_PIN          13
 #endif
 
-// Define driver spindle pins
+// Define auxiliary output pins
+#define AUXOUTPUT0_PN           2                   // Spindle PWM
+#define AUXOUTPUT0_PORT         port(AUXOUTPUT0_PN)
+#define AUXOUTPUT0_PIN          4
+#define AUXOUTPUT1_PN           1                   // Spindle direction
+#define AUXOUTPUT1_PORT         port(AUXOUTPUT1_PN)
+#define AUXOUTPUT1_PIN          20
+#define AUXOUTPUT2_PN           0                   // Spindle enable
+#define AUXOUTPUT2_PORT         port(AUXOUTPUT2_PN)
+#define AUXOUTPUT2_PIN          16
+#define AUXOUTPUT3_PN           0                   // Coolant flood
+#define AUXOUTPUT3_PORT         port(AUXOUTPUT3_PN)
+#define AUXOUTPUT3_PIN          19
+#define AUXOUTPUT4_PN           1                   // Coolant mist
+#define AUXOUTPUT4_PORT         port(AUXOUTPUT4_PN)
+#define AUXOUTPUT4_PIN          30
 
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_CHANNEL             PWM1_CH5    // NeoPixel middle (primary) / Heater 1 (secondary)
+// Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PORT     AUXOUTPUT2_PORT
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_CHANNEL             PWM1_CH5    // MOSFET3 (P2.4)
 #define SPINDLE_PWM_USE_PRIMARY_PIN     true
 #define SPINDLE_PWM_USE_SECONDARY_PIN   false
-#else
-#define AUXOUTPUT0_PN                   2
-#define AUXOUTPUT0_PORT                 port(AUXOUTPUT0_PN)
-#define AUXOUTPUT0_PIN                  4
+#define SPINDLE_PWM_PORT        AUXOUTPUT0_PORT
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PN            1
-#define SPINDLE_DIRECTION_PORT          port(SPINDLE_DIRECTION_PN)
-#define SPINDLE_DIRECTION_PIN           20
-#else
-#define AUXOUTPUT1_PN                   1
-#define AUXOUTPUT1_PORT                 port(AUXOUTPUT1_PN)
-#define AUXOUTPUT1_PIN                  20
-#endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PN               0
-#define SPINDLE_ENABLE_PORT             port(SPINDLE_ENABLE_PN)
-#define SPINDLE_ENABLE_PIN              16
-#else
-#define AUXOUTPUT2_PN                   0
-#define AUXOUTPUT2_PORT                 port(AUXOUTPUT2_PN)
-#define AUXOUTPUT2_PIN                  16
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PORT  AUXOUTPUT1_PORT
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-#define COOLANT_FLOOD_PN        0
-#define COOLANT_FLOOD_PORT      port(COOLANT_FLOOD_PN)
-#define COOLANT_FLOOD_PIN       19
-
-#define COOLANT_MIST_PN         1
-#define COOLANT_MIST_PORT       port(COOLANT_MIST_PN)
-#define COOLANT_MIST_PIN        30
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PORT      AUXOUTPUT3_PORT
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PORT       AUXOUTPUT4_PORT
+#define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
+#endif
 
 // Define user-control CONTROLs (reset, feed hold, cycle start) input pins.
 #define RESET_PORT_PN           0
