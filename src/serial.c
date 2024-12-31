@@ -135,6 +135,15 @@ void serialRegisterStreams (void)
 }
 
 //
+// Flushes the serial output buffer
+//
+static void serialTxFlush (void)
+{
+    Chip_UART_IntDisable(SERIAL_MODULE, UART_IER_THREINT);  // Disable TX interrupts
+    txbuf.tail = txbuf.head;
+}
+
+//
 // Returns number of characters in serial output buffer
 //
 static uint16_t serialTxCount (void)
@@ -321,6 +330,7 @@ const io_stream_t *serialInit (uint32_t baud_rate)
         .get_rx_buffer_free = serialRxFree,
         .get_rx_buffer_count = serialRxCount,
         .get_tx_buffer_count = serialTxCount,
+        .reset_write_buffer = serialTxFlush,
         .reset_read_buffer = serialRxFlush,
         .cancel_read_buffer = serialRxCancel,
         .suspend_read = serialSuspendInput,
