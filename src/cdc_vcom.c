@@ -114,8 +114,10 @@ static ErrorCode_t VCOM_SetLineCode(USBD_HANDLE_T hCDC, CDC_LINE_CODING *line_co
 static ErrorCode_t VCOM_SetLineState(USBD_HANDLE_T hCDC , uint16_t state)
 {
     /* Called when line state is changed/set. Using it to know host connection state (DTR asserted) */
-    usb_linestate.pin.dtr = (uint8_t)state;
+    usb_linestate.pin.value = (uint8_t)state;
     usb_linestate.timestamp = hal.get_elapsed_ticks();
+    if(hal.stream.state.is_usb && hal.stream.on_linestate_changed)
+        hal.stream.on_linestate_changed(usb_linestate.pin);
 
     return LPC_OK;
 }
