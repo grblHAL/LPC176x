@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for NXP LPC176x
 
-  Copyright (c) 2019-2024 Terje Io
+  Copyright (c) 2019-20265 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,8 +29,12 @@
 
 #define MAX_PAGE_SIZE 64
 
-void i2c_init (void)
+i2c_cap_t i2c_start (void)
 {
+    static i2c_cap_t cap = {};
+
+    if(cap.started)
+        return cap;
 
 #if I2C_ENABLE == 1
     Chip_IOCON_PinMux(LPC_IOCON, 0, 19, IOCON_MODE_INACT, IOCON_FUNC3);
@@ -83,14 +87,18 @@ void i2c_init (void)
 
     hal.periph_port.register_pin(&scl);
     hal.periph_port.register_pin(&sda);
+
+    cap.started = On;
+
+    return cap;
 }
 
-#if EEPROM_ENABLE
-
-nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
+bool i2c_transfer (i2c_transfer_t *i2c, bool read)
 {
     static I2C_XFER_T xfer;
     static uint8_t txbuf[MAX_PAGE_SIZE + 2];
+
+    bool ok;
 
     if(i2c->word_addr_bytes == 2) {
         txbuf[0] = i2c->word_addr >> 8;
@@ -103,48 +111,53 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
     xfer.rxBuff = read ? i2c->data : NULL;
     xfer.txBuff = txbuf;
 
-    if(!read) {
+    if((ok = read)) {
+        xfer.txSz = i2c->word_addr_bytes;
+    } else if((ok = i2c->count <= MAX_PAGE_SIZE)) {
         xfer.txSz = i2c->word_addr_bytes + i2c->count;
         memcpy(&txbuf[i2c->word_addr_bytes], i2c->data, i2c->count);
-    } else
-        xfer.txSz = i2c->word_addr_bytes;
+    }
 
-    Chip_I2C_MasterTransfer(I2C1, &xfer);
+    if(ok)
+        ok = Chip_I2C_MasterTransfer(I2C1, &xfer) == I2C_STATUS_DONE;
 
-#if !EEPROM_IS_FRAM
-    if(!read)
-        hal.delay_ms(15, NULL);
-#endif
-
-    return NVS_TransferResult_OK;
+    return ok;
 }
 
-#endif
+bool i2c_probe (i2c_address_t i2c_address)
+{
+    return true;
+}
 
-void i2c_write (uint8_t addr, uint8_t *data, uint8_t len)
+bool i2c_send (i2c_address_t i2c_address, uint8_t *data, size_t size, bool block)
 {
     static I2C_XFER_T xfer;
 
-    xfer.slaveAddr = addr;
+    xfer.slaveAddr = i2c_address;
     xfer.rxSz = 0;
     xfer.rxBuff = NULL;
     xfer.txBuff = data;
-    xfer.txSz = len;
+    xfer.txSz = size;
 
-    Chip_I2C_MasterTransfer(I2C1, &xfer);
+    return Chip_I2C_MasterTransfer(I2C1, &xfer) == I2C_STATUS_DONE;;
 }
 
-#if KEYPAD_ENABLE == 1
-
-void i2c_get_keycode (uint_fast16_t addr, keycode_callback_ptr callback)
+bool i2c_receive (i2c_address_t i2c_address, uint8_t *buf, size_t size, bool block)
 {
+    return false;
+}
+
+
+bool i2c_get_keycode (i2c_address_t i2c_address, keycode_callback_ptr callback)
+{
+    bool ok;
     uint8_t keycode;
 
     // This should be changed to be asynchronous!
-    if(Chip_I2C_MasterRead(I2C1, (uint8_t)addr, &keycode, 1) == 1)
+    if((ok = Chip_I2C_MasterRead(I2C1, (uint8_t)i2c_address, &keycode, 1) == 1))
         callback(keycode);
-}
 
-#endif
+    return ok;
+}
 
 #endif // I2C_ENABLE

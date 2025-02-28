@@ -1690,7 +1690,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "250104";
+    hal.driver_version = "250228";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1752,10 +1752,6 @@ bool driver_init (void) {
 #else
     if(!stream_connect_instance(SERIAL_STREAM, BAUD_RATE))
         while(true); // Cannot boot if no communication channel is available!
-#endif
-
-#if I2C_ENABLE
-    i2c_init();
 #endif
 
 #if EEPROM_ENABLE

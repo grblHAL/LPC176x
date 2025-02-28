@@ -3,20 +3,20 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2023 Terje Io
+  Copyright (c) 2020-2025 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "driver.h"
@@ -56,14 +56,6 @@ static void mks_settings_save (void)
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&mks, sizeof(mks_settings_t), true);
 }
 
-static setting_details_t setting_details = {
-    .settings = mks_settings,
-    .n_settings = sizeof(mks_settings) / sizeof(setting_detail_t),
-    .load = mks_settings_load,
-    .save = mks_settings_save,
-    .restore = mks_settings_restore
-};
-
 static void mks_set_current (uint_fast8_t axis, float current)
 {
     static const uint8_t wiper_registers[] = {0x00, 0x01, 0x06, 0x07, 0x00};
@@ -73,7 +65,7 @@ static void mks_set_current (uint_fast8_t axis, float current)
     cmd[0] = wiper_registers[axis] << 4;
     cmd[1] = (uint8_t)min(255.0f, roundf(current * 100.85f));
 
-    i2c_write(MCP44XX_I2C_ADDR | (axis > 3 ? 0b01 : 0b00), cmd, sizeof(cmd));
+    i2c_send(MCP44XX_I2C_ADDR | (axis > 3 ? 0b01 : 0b00), cmd, sizeof(cmd), true);
 }
 
 // Parse and set driver specific parameters
@@ -144,7 +136,15 @@ static void mks_settings_load (void)
 
 void board_init (void)
 {
-    if((nvs_address = nvs_alloc(sizeof(mks_settings_t))))
+    static setting_details_t setting_details = {
+        .settings = mks_settings,
+        .n_settings = sizeof(mks_settings) / sizeof(setting_detail_t),
+        .load = mks_settings_load,
+        .save = mks_settings_save,
+        .restore = mks_settings_restore
+    };
+
+    if(i2c_start().ok && (nvs_address = nvs_alloc(sizeof(mks_settings_t))))
         settings_register(&setting_details);
 }
 
