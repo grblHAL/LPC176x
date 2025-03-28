@@ -75,7 +75,7 @@ static spindle_id_t spindle_id = -1;
 static bool pwmEnabled = false;
 static spindle_pwm_t spindle_pwm;
 #endif
-static axes_signals_t next_step_outbits;
+static axes_signals_t next_step_out;
 static pin_group_pins_t limit_inputs = {0};
 static delay_t delay = { .ms = 1, .callback = NULL }; // NOTE: initial ms set to 1 for "resetting" systick timer on startup
 #if MPG_ENABLE == 1
@@ -662,11 +662,13 @@ inline static __attribute__((always_inline)) void stepperSetDirOutputs (axes_sig
 // Sets stepper direction and pulse pins and starts a step pulse.
 static void stepperPulseStart (stepper_t *stepper)
 {
-    if(stepper->dir_change)
-        stepperSetDirOutputs(stepper->dir_outbits);
+    if(stepper->dir_changed.bits) {
+        stepper->dir_changed.bits = 0;
+        stepperSetDirOutputs(stepper->dir_out);
+    }
 
-    if(stepper->step_outbits.value) {
-        stepperSetStepOutputs(stepper->step_outbits);
+    if(stepper->step_out.bits) {
+        stepperSetStepOutputs(stepper->step_out);
         PULSE_TIMER->TCR = 0b01;
     }
 }
@@ -675,22 +677,24 @@ static void stepperPulseStart (stepper_t *stepper)
 // Note: delay is only added when there is a direction change and a pulse to be output.
 static void stepperPulseStartDelayed (stepper_t *stepper)
 {
-    if(stepper->dir_change) {
+    if(stepper->dir_changed.bits) {
 
-        stepperSetDirOutputs(stepper->dir_outbits);
+        stepperSetDirOutputs(stepper->dir_out);
 
-        if(stepper->step_outbits.value) {
+        if(stepper->step_out.bits) {
             PULSE_TIMER->TCR = 0b10;
-            next_step_outbits = stepper->step_outbits; // Store out_bits
+            next_step_out = stepper->step_out; // Store out_bits
             PULSE_TIMER->MR[0] = pulse_delay;
             PULSE_TIMER->TCR = 0b01;
         }
 
+        stepper->dir_changed.bits = 0;
+
         return;
     }
 
-    if(stepper->step_outbits.value) {
-        stepperSetStepOutputs(stepper->step_outbits);
+    if(stepper->step_out.bits) {
+        stepperSetStepOutputs(stepper->step_out);
         PULSE_TIMER->TCR = 1;
     }
 }
@@ -1690,7 +1694,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "250228";
+    hal.driver_version = "250327";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1948,7 +1952,7 @@ void STEPPULSE_IRQHandler (void)
     if(PULSE_TIMER->MR[0] == pulse_length)
         stepperSetStepOutputs((axes_signals_t){0}); // End step pulse.
     else {
-        stepperSetStepOutputs(next_step_outbits);   // Begin step pulse.
+        stepperSetStepOutputs(next_step_out);   // Begin step pulse.
         PULSE_TIMER->TCR = 0b10;
         PULSE_TIMER->MR[0] = pulse_length;
         PULSE_TIMER->TCR = 0b01;
