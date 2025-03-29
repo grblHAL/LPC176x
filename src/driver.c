@@ -444,11 +444,6 @@ static void stepperWakeUp (void)
     STEPPER_TIMER->TCR = 0b01;                      // start stepper ISR timer in up mode
 }
 
-// Disables stepper driver interrupts
-static void stepperGoIdle (bool clear_signals) {
-    STEPPER_TIMER->TCR = 0;   // Stop stepper timer
-}
-
 // Sets up stepper driver interrupt timeout, limiting the slowest speed
 static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
@@ -460,7 +455,7 @@ static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 
 #ifdef SQUARING_ENABLED
 
-inline static __attribute__((always_inline)) void stepperSetStepOutputs (axes_signals_t step_outbits_1)
+inline static __attribute__((always_inline)) void stepper_step_out (axes_signals_t step_outbits_1)
 {
     axes_signals_t step_outbits_2;
     step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
@@ -506,7 +501,7 @@ static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
 
 #else
 
-inline static __attribute__((always_inline)) void stepperSetStepOutputs (axes_signals_t step_outbits)
+inline static __attribute__((always_inline)) void stepper_step_out (axes_signals_t step_outbits)
 {
 #if STEP_OUTMODE == GPIO_BITBAND
     step_outbits.value ^= settings.steppers.step_invert.value;
@@ -602,8 +597,8 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 #endif
 
 // Set stepper direction output pins
-// NOTE: see note for stepperSetStepOutputs()
-inline static __attribute__((always_inline)) void stepperSetDirOutputs (axes_signals_t dir_outbits)
+// NOTE: see note for stepper_step_out()
+inline static __attribute__((always_inline)) void stepper_dir_out (axes_signals_t dir_outbits)
 {
 #if DIRECTION_OUTMODE == GPIO_BITBAND
     dir_outbits.value ^= settings.steppers.dir_invert.value;
@@ -659,16 +654,27 @@ inline static __attribute__((always_inline)) void stepperSetDirOutputs (axes_sig
 #endif
 }
 
+// Disables stepper driver interrupts
+static void stepperGoIdle (bool clear_signals)
+{
+    STEPPER_TIMER->TCR = 0;   // Stop stepper timer
+
+    if(clear_signals) {
+        stepper_dir_out((axes_signals_t){0});
+        stepper_step_out((axes_signals_t){0});
+    }
+}
+
 // Sets stepper direction and pulse pins and starts a step pulse.
 static void stepperPulseStart (stepper_t *stepper)
 {
     if(stepper->dir_changed.bits) {
         stepper->dir_changed.bits = 0;
-        stepperSetDirOutputs(stepper->dir_out);
+        stepper_dir_out(stepper->dir_out);
     }
 
     if(stepper->step_out.bits) {
-        stepperSetStepOutputs(stepper->step_out);
+        stepper_step_out(stepper->step_out);
         PULSE_TIMER->TCR = 0b01;
     }
 }
@@ -679,7 +685,7 @@ static void stepperPulseStartDelayed (stepper_t *stepper)
 {
     if(stepper->dir_changed.bits) {
 
-        stepperSetDirOutputs(stepper->dir_out);
+        stepper_dir_out(stepper->dir_out);
 
         if(stepper->step_out.bits) {
             PULSE_TIMER->TCR = 0b10;
@@ -694,7 +700,7 @@ static void stepperPulseStartDelayed (stepper_t *stepper)
     }
 
     if(stepper->step_out.bits) {
-        stepperSetStepOutputs(stepper->step_out);
+        stepper_step_out(stepper->step_out);
         PULSE_TIMER->TCR = 1;
     }
 }
@@ -1290,6 +1296,8 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
         }
 #endif
 
+        hal.stepper.go_idle(true);
+
         int32_t t = (uint32_t)(12.0f * (settings->steppers.pulse_microseconds - STEP_PULSE_LATENCY)) - 1;
         pulse_length = t < 2 ? 2 : t;
 
@@ -1307,7 +1315,7 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
         PULSE_TIMER->MCR |= (MR0I|MR0S|MR0R); // Enable interrupt for finish step pulse, reset and stop timer
         PULSE_TIMER->TCR = 0b00;
 
-        stepperSetStepOutputs((axes_signals_t){0});
+        stepper_step_out((axes_signals_t){0});
 
         NVIC_DisableIRQ(EINT3_IRQn);  // Disable GPIO interrupt
 
@@ -1653,8 +1661,6 @@ static bool driver_setup (settings_t *settings)
 
     hal.settings_changed(settings, (settings_changed_flags_t){0});
 
-    stepperSetDirOutputs((axes_signals_t){0});
-
 #if SDCARD_ENABLE
     DIGITAL_OUT(SD_CS_PORT, SD_CS_BIT, 1);
     sdcard_init();
@@ -1942,7 +1948,7 @@ void STEPPER_IRQHandler (void)
 // The new timing between direction, step pulse, and step complete events are setup in the
 // st_wake_up() routine.
 
-// This interrupt is enabled when Grbl sets the motor port bits to execute
+// This interrupt is enabled when grblHAL sets the motor port bits to execute
 // a step. This ISR resets the motor port after a short period (settings.pulse_microseconds)
 // completing one step cycle.
 void STEPPULSE_IRQHandler (void)
@@ -1950,9 +1956,9 @@ void STEPPULSE_IRQHandler (void)
     PULSE_TIMER->IR = PULSE_TIMER->IR;
 
     if(PULSE_TIMER->MR[0] == pulse_length)
-        stepperSetStepOutputs((axes_signals_t){0}); // End step pulse.
+        stepper_step_out((axes_signals_t){0}); // End step pulse.
     else {
-        stepperSetStepOutputs(next_step_out);   // Begin step pulse.
+        stepper_step_out(next_step_out);   // Begin step pulse.
         PULSE_TIMER->TCR = 0b10;
         PULSE_TIMER->MR[0] = pulse_length;
         PULSE_TIMER->TCR = 0b01;
