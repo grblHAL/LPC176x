@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2024 Terje Io
+  Copyright (c) 2018-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -173,6 +173,7 @@ typedef struct {
     LPC_GPIO_T *port;
     uint32_t pin;
     uint32_t bit;
+    uint8_t user_port;
     pin_function_t id;
     pin_group_t group;
     bool debounce;
