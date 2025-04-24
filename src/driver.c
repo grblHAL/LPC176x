@@ -960,7 +960,7 @@ static void aux_irq_handler (uint8_t port, bool state)
 #endif
 #ifdef MPG_MODE_PIN
             case Input_MPGSelect:
-                protocol_enqueue_foreground_task(mpg_select, NULL);
+                task_add_immediate(mpg_select, NULL);
                 break;
 #endif
             default:
@@ -1940,7 +1940,7 @@ bool driver_init (void) {
     if(!hal.driver_cap.mpg_mode)
         hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL);
     if(hal.driver_cap.mpg_mode)
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
+        task_run_on_startup(mpg_enable, NULL);
 #elif MPG_ENABLE == 2
     if(!hal.driver_cap.mpg_mode)
         hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
@@ -2071,7 +2071,7 @@ void GPIO_IRQHandler (void)
   #if MPG_ENABLE == 1
                     case PinGroup_MPG:
                         gpio_int_enable(&gpio0_signals[i], IRQ_Mode_None);
-                        protocol_enqueue_foreground_task(mpg_select, NULL);
+                        task_add_immediate(mpg_select, NULL);
                         break;
   #endif
   #if I2C_STROBE_ENABLE
@@ -2109,7 +2109,7 @@ void GPIO_IRQHandler (void)
    #if MPG_ENABLE == 1
                     case PinGroup_MPG:
                         gpio_int_enable(&gpio2_signals[i], IRQ_Mode_None);
-                        protocol_enqueue_foreground_task(mpg_select, NULL);
+                        task_add_immediate(mpg_select, NULL);
                         break;
   #endif
   #if KEYPAD_ENABLE
