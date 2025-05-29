@@ -34,6 +34,8 @@
 #include "my_machine.h"
 #endif
 
+#define OPTS_POSTPROCESSING
+
 #include "grbl/driver_opts.h"
 
 #include "portmacros.h"
@@ -67,6 +69,10 @@
 #define GPIO_SHIFT5  5
 #define GPIO_MAP     8
 #define GPIO_BITBAND 9
+
+#ifndef CONTROL_ENABLE
+#define CONTROL_ENABLE (CONTROL_HALT|CONTROL_FEED_HOLD|CONTROL_CYCLE_START)
+#endif
 
 // NOTE:
 // P0.27, P0.28 are dedicated I2C pins without pull up/down.
@@ -102,6 +108,8 @@
 #endif
 
 // End configuration
+
+#include "grbl/driver_opts2.h"
 
 #if MPG_ENABLE && !USB_SERIAL_CDC
 #error "MPG mode can only be enabled with USB_SERIAL_CDC enabled!"

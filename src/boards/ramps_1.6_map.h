@@ -195,30 +195,32 @@
 #define COOLANT_ENABLE 0
 #endif
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define RESET_PORT_PN           0
-#define RESET_PORT              port(RESET_PORT_PN)
-#define RESET_PIN               27  // DUE Analog Pin 3
-
-#define FEED_HOLD_PN            0
-#define FEED_HOLD_PORT          port(FEED_HOLD_PN)
-#define FEED_HOLD_PIN           28  // DUE Analog Pin 4
-
-#define CYCLE_START_PN          2
-#define CYCLE_START_PORT        port(CYCLE_START_PN)
-#define CYCLE_START_PIN         6   // DUE Analog Pin 5
-
-#define CONTROL_INMODE          GPIO_BITBAND
-
-#define AUXINPUT0_PN            0
-#define AUXINPUT0_PORT          port(AUXINPUT0_PN)
+#define AUXINPUT0_PORT          port(0)
 #define AUXINPUT0_PIN           15
-#define AUXINPUT1_PN            0
-#define AUXINPUT1_PORT          port(AUXINPUT1_PN)
+#define AUXINPUT1_PORT          port(0)
 #define AUXINPUT1_PIN           17
-#define AUXINPUT2_PN            4
-#define AUXINPUT2_PORT          port(AUXINPUT2_PN)
+#define AUXINPUT2_PORT          port(4)
 #define AUXINPUT2_PIN           6
+#define AUXINPUT3_PORT          port(0) // A3 - Reset/EStop
+#define AUXINPUT3_PIN           27
+#define AUXINPUT4_PORT          port(0) // A4 -Feed hold
+#define AUXINPUT4_PIN           28
+#define AUXINPUT5_PORT          port(2) // A5 - Cycle start
+#define AUXINPUT5_PIN           6
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if CONTROL_ENABLE & CONTROL_HALT
+#define RESET_PORT              AUXINPUT3_PORT
+#define RESET_PIN               AUXINPUT3_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_FEED_HOLD
+#define FEED_HOLD_PORT          AUXINPUT4_PORT
+#define FEED_HOLD_PIN           AUXINPUT4_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_CYCLE_START
+#define CYCLE_START_PORT        AUXINPUT5_PORT
+#define CYCLE_START_PIN         AUXINPUT5_PIN
+#endif
 
 #if PROBE_ENABLE
 #define PROBE_PORT              AUXINPUT2_PORT

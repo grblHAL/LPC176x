@@ -189,12 +189,30 @@
 
 #define CONTROL_INMODE          GPIO_BITBAND
 
-#define AUXINPUT0_PN            2
-#define AUXINPUT0_PORT          port(AUXINPUT0_PN)
+#define AUXINPUT0_PORT          port(2) // EXP1-1
 #define AUXINPUT0_PIN           8
-#define AUXINPUT1_PN            1
-#define AUXINPUT1_PORT          port(AUXINPUT1_PN)
+#define AUXINPUT1_PORT          port(1) // Z-PROBE - Probe
 #define AUXINPUT1_PIN           22
+#define AUXINPUT2_PORT          port(0) // EXP1-6 - Reset/EStop
+#define AUXINPUT2_PIN           18
+#define AUXINPUT3_PORT          port(0) // EXP1-2 - Feed hold
+#define AUXINPUT3_PIN           16
+#define AUXINPUT4_PORT          port(0) // EXP1-6 - Cycle start
+#define AUXINPUT4_PIN           15
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if CONTROL_ENABLE & CONTROL_HALT
+#define RESET_PORT              AUXINPUT2_PORT
+#define RESET_PIN               AUXINPUT2_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_FEED_HOLD
+#define FEED_HOLD_PORT          AUXINPUT3_PORT
+#define FEED_HOLD_PIN           AUXINPUT3_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_CYCLE_START
+#define CYCLE_START_PORT        AUXINPUT4_PORT
+#define CYCLE_START_PIN         AUXINPUT4_PIN
+#endif
 
 #if PROBE_ENABLE
 #define PROBE_PORT              AUXINPUT1_PORT
