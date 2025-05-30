@@ -33,7 +33,7 @@
 
 #include "chip.h"
 
-#if SERIAL_MOD == 3
+#if SERIAL_PORT == 3
 
 #define SERIAL_IRQHandler UART3_IRQHandler
 #define SERIAL_MODULE     LPC_UART3
@@ -90,7 +90,7 @@ void serialRegisterStreams (void)
         .streams = serial,
     };
 
-#if SERIAL_MOD == 3
+#if SERIAL_PORT == 3
 
     static const periph_pin_t tx = {
         .function = Output_TX,

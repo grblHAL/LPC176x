@@ -42,7 +42,7 @@ void board_init (void);
 // P0 = 1.18(EXP1), P1 = 1.20(EXP1), P2 = 1.22(EXP1)
 
 #if USB_SERIAL_CDC == 0
-#define SERIAL_MOD 3    // WiFi port
+#define SERIAL_PORT 3    // WiFi port
 #endif
 
 // Define step pulse output pins.

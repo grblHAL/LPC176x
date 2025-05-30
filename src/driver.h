@@ -107,6 +107,10 @@
 #define STEP_PULSE_LATENCY 2.2f // microseconds
 #endif
 
+#ifndef SERIAL_PORT
+#define SERIAL_PORT 0
+#endif
+
 // End configuration
 
 #include "grbl/driver_opts2.h"
