@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2025 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
 }
 
 
-static void add_cs_pin (xbar_t *gpio)
+static void add_cs_pin (xbar_t *gpio, void *data)
 {
     if(gpio->group == PinGroup_MotorChipSelect) {
         switch(gpio->function) {
