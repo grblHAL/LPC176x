@@ -153,23 +153,6 @@ static void usbRxCancel (void)
     rxbuf.head = BUFNEXT(rxbuf.head, rxbuf);
 }
 
-//
-// Writes a single character to the USB output stream, blocks if buffer full
-//
-static bool usbPutC (const char c)
-{
-    static uint8_t buf[1];
-
-    *buf = c;
-
-    while(vcom_write(buf, 1) != 1) {
-        if(!hal.stream_blocking_callback())
-            return false;
-    }
-
-    return true;
-}
-
 static inline bool _usb_write()
 {
     size_t length = txbuf.length;
@@ -223,6 +206,26 @@ static void usbWriteS (const char *s)
             _usb_write();
     }
 }
+
+//
+// Writes a single character to the USB output stream, blocks if buffer full
+//
+static bool usbPutC (const char c)
+{
+    static uint8_t s[2] = "";
+
+    *s = c;
+
+    if(txbuf.length)
+        usbWriteS((char *)s);
+    else while(vcom_write(s, 1) != 1) {
+        if(!hal.stream_blocking_callback())
+            return false;
+    }
+
+    return true;
+}
+
 
 //
 // Writes a number of characters from string to the USB output stream, blocks if buffer full
