@@ -215,7 +215,7 @@ static inline bool serialPutCNonBlocking (const char c)
 //
 // Writes a character to the serial output stream
 //
-static bool serialPutC (const char c)
+static bool serialPutC (const uint8_t c)
 {
     if(txbuf.head != txbuf.tail || !serialPutCNonBlocking(c)) { // Try to send character without buffering...
 
@@ -242,15 +242,15 @@ static void serialWriteS (const char *s)
     char c, *ptr = (char *)s;
 
     while((c = *ptr++) != '\0')
-        serialPutC(c);
+        serialPutC((uint8_t)c);
 }
 
 //
 // Writes a number of characters from string to the serial output stream followed by EOL, blocks if buffer full
 //
-static void serialWrite (const char *s, uint16_t length)
+static void serialWrite (const uint8_t *s, uint16_t length)
 {
-    char *ptr = (char *)s;
+    uint8_t *ptr = (uint8_t *)s;
 
     while(length--)
         serialPutC(*ptr++);
@@ -259,22 +259,22 @@ static void serialWrite (const char *s, uint16_t length)
 //
 // serialGetC - returns -1 if no data available
 //
-static int16_t serialGetC (void)
+static int32_t serialGetC (void)
 {
-    uint_fast16_t tail = rxbuf.tail;    // Get buffer pointer
+    uint_fast16_t tail = rxbuf.tail;            // Get buffer pointer
 
     if(tail == rxbuf.head)
         return -1; // no data available
 
-    char data = rxbuf.data[tail];       // Get next character
-    rxbuf.tail = BUFNEXT(tail, rxbuf);  // and update pointer
+    int32_t data = (int32_t)rxbuf.data[tail];   // Get next character
+    rxbuf.tail = BUFNEXT(tail, rxbuf);          // and update pointer
 
 #ifdef RTS_PORT
     if (rts_state && BUFCOUNT(rx_head, rx_tail, RX_BUFFER_SIZE) < RX_BUFFER_LWM) // Clear RTS if below LWM
         BITBAND_PERI(RTS_PORT->OUT, RTS_PIN) = rts_state = 0;
 #endif
 
-    return (int16_t)data;
+    return data;
 }
 
 static bool serialSuspendInput (bool suspend)
@@ -302,7 +302,7 @@ static bool serialDisable (bool disable)
     return true;
 }
 
-static bool serialEnqueueRtCommand (char c)
+static bool serialEnqueueRtCommand (uint8_t c)
 {
     return enqueue_realtime_command(c);
 }
