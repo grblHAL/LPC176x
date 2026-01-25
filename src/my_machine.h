@@ -21,12 +21,12 @@
 
 // NOTE: Only one board may be enabled!
 // If none is enabled pin mappings from generic_map.h will be used
-//#define SMOOTHIEBOARD
-//#define BOARD_RAMPS_16
 //#define BOARD_BTT_SKR_13
 //#define BOARD_BTT_SKR_14_TURBO
 //#define BOARD_BTT_SKR_E3_TURBO  // With onboard Trinamic TNMC2209 drivers. NOTE: not verified!
 //#define BOARD_MKS_SBASE_13
+//#define BOARD_RAMPS_16
+//#define BOARD_SMOOTHIEBOARD
 //#define BOARD_MY_MACHINE // Add my_machine_map.h before enabling this!
 
 // Configuration
@@ -56,11 +56,13 @@
                                      // 2: uses a serial port for input. If MPG_ENABLE is set > 0 the serial stream is shared with the MPG.
 //#define LASER_COOLANT_ENABLE     1 // Laser coolant plugin. To be completed.
 //#define LB_CLUSTERS_ENABLE       1 // LaserBurn cluster support.
-//#define TRINAMIC_ENABLE       2130 // Uncomment to enable Trinamic TMC2130 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
-//#define TRINAMIC_ENABLE       2209 // Uncomment to enable Trinamic TMC2209 driver support. NOTE: Experimental for now, SKR E3 Turbo and SKR 1.x boards only
-//#define TRINAMIC_ENABLE       5160 // Uncomment to enable Trinamic TMC5160 driver support. NOTE: Experimental for now, currently for SKR 1.x boards only
-//#define LIMIT_MAX_ENABLE         1 // Uncomment to enable max limit input pins (when available)
-//#define EEPROM_ENABLE           16 // I2C EEPROM/FRAM support. Set to 16 for 2K, 32 for 4K, 64 for 8K, 128 for 16K and 256 for 16K capacity.
+//#define TRINAMIC_ENABLE      5160 // Trinamic TMC5160 stepper driver support.
+//#define TRINAMIC_ENABLE      2209 // Trinamic TMC2209 stepper driver support.
+//#define TRINAMIC_ENABLE      2660 // Trinamic TMC2660 stepper driver support.
+//#define TRINAMIC_R_SENSE      110 // R sense resistance in milliohms, 2130 and 2209 default is 110, 5160 is 75.
+//#define TRINAMIC_ENABLE      2240 // Trinamic TMC2240 stepper driver support.
+//#define TRINAMIC_R_REF         12 // R ref resistance in kiloohms, used for 2240 - default value is 12.
+//#define EEPROM_ENABLE          16 // I2C EEPROM/FRAM support. Set to 16 for 2K, 32 for 4K, 64 for 8K, 128 for 16K and 256 for 16K capacity.
 //#define EEPROM_IS_FRAM          1 // Uncomment when EEPROM is enabled and chip is FRAM, this to remove write delay.
 #define ESTOP_ENABLE             0 // When enabled only real-time report requests will be executed when the reset pin is asserted.
                                    // Note: if commented out the default setting is determined from COMPATIBILITY_LEVEL.
@@ -77,6 +79,7 @@
 //#define STOP_DISABLE_ENABLE     1
 //#define BLOCK_DELETE_ENABLE     1
 //#define SINGLE_BLOCK_ENABLE     1
+//#define LIMIT_MAX_ENABLE        1 // Uncomment to enable max limit input pins (when available)
 //#define LIMITS_OVERRIDE_ENABLE  1
 
 // If the selected board map supports more than three motors ganging and/or auto-squaring

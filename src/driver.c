@@ -128,6 +128,24 @@ static input_signal_t inputpin[] = {
 #ifdef C_LIMIT_PIN_MAX
     { .id = Input_LimitC_Max,   .port = C_LIMIT_PORT_MAX,  .pin = C_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
 #endif
+#ifdef U_LIMIT_PIN
+    { .id = Input_LimitU,       .port = U_LIMIT_PORT,      .pin = U_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
+#ifdef U_LIMIT_PIN_MAX
+    { .id = Input_LimitU_Max,   .port = U_LIMIT_PORT_MAX,  .pin = U_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
+#endif
+#ifdef V_LIMIT_PIN
+    { .id = Input_LimitV,       .port = V_LIMIT_PORT,      .pin = V_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
+#ifdef V_LIMIT_PIN_MAX
+    { .id = Input_LimitV_Max,   .port = V_LIMIT_PORT_MAX,  .pin = V_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
+#endif
+#ifdef W_LIMIT_PIN
+    { .id = Input_LimitW,       .port = W_LIMIT_PORT,      .pin = W_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
+#ifdef W_LIMIT_PIN_MAX
+    { .id = Input_LimitW_Max,   .port = W_LIMIT_PORT_MAX,  .pin = W_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
+#endif
 // Aux input pins must be consecutive in this array
 #ifdef AUXINPUT0_PIN
     { .id = Input_Aux0,         .port = AUXINPUT0_PORT,    .pin = AUXINPUT0_PIN,     .group = PinGroup_AuxInput },
@@ -168,6 +186,15 @@ static output_signal_t outputpin[] = {
 #ifdef C_AXIS
     { .id = Output_StepC,           .port = C_STEP_PORT,            .pin = C_STEP_PIN,              .group = PinGroup_StepperStep },
 #endif
+#ifdef U_AXIS
+    { .id = Output_StepU,           .port = U_STEP_PORT,            .pin = U_STEP_PIN,              .group = PinGroup_StepperStep,   .mode = {STEP_PINMODE} },
+#endif
+#ifdef V_AXIS
+    { .id = Output_StepV,           .port = V_STEP_PORT,            .pin = V_STEP_PIN,              .group = PinGroup_StepperStep,   .mode = {STEP_PINMODE} },
+#endif
+#ifdef W_AXIS
+    { .id = Output_StepW,           .port = W_STEP_PORT,            .pin = W_STEP_PIN,              .group = PinGroup_StepperStep,   .mode = {STEP_PINMODE} },
+#endif
 #ifdef X2_STEP_PIN
     { .id = Output_StepX_2,         .port = X2_STEP_PORT,           .pin = X2_STEP_PIN,             .group = PinGroup_StepperStep },
 #endif
@@ -188,6 +215,15 @@ static output_signal_t outputpin[] = {
 #endif
 #ifdef C_AXIS
     { .id = Output_DirC,            .port = C_DIRECTION_PORT,       .pin = C_DIRECTION_PIN,         .group = PinGroup_StepperDir },
+#endif
+#ifdef U_AXIS
+    { .id = Output_DirU,            .port = U_DIRECTION_PORT,       .pin = U_DIRECTION_PIN,         .group = PinGroup_StepperDir,    .mode = {DIRECTION_PINMODE} },
+#endif
+#ifdef V_AXIS
+    { .id = Output_DirV,            .port = V_DIRECTION_PORT,       .pin = V_DIRECTION_PIN,         .group = PinGroup_StepperDir,    .mode = {DIRECTION_PINMODE} },
+#endif
+#ifdef W_AXIS
+    { .id = Output_DirW,            .port = W_DIRECTION_PORT,       .pin = W_DIRECTION_PIN,         .group = PinGroup_StepperDir,    .mode = {DIRECTION_PINMODE} },
 #endif
 #ifdef X2_DIRECTION_PIN
     { .id = Output_DirX_2,          .port = X2_DIRECTION_PORT,      .pin = X2_DIRECTION_PIN,        .group = PinGroup_StepperDir },
@@ -218,6 +254,15 @@ static output_signal_t outputpin[] = {
 #endif
 #ifdef C_ENABLE_PORT
     { .id = Output_StepperEnableC,  .port = C_ENABLE_PORT,          .pin = C_ENABLE_PIN,            .group = PinGroup_StepperEnable },
+#endif
+#ifdef U_ENABLE_PORT
+    { .id = Output_StepperEnableU,  .port = U_ENABLE_PORT,          .pin = U_ENABLE_PIN,            .group = PinGroup_StepperEnable, .mode = {STEPPERS_ENABLE_PINMODE} },
+#endif
+#ifdef V_ENABLE_PORT
+    { .id = Output_StepperEnableU,  .port = V_ENABLE_PORT,          .pin = V_ENABLE_PIN,            .group = PinGroup_StepperEnable, .mode = {STEPPERS_ENABLE_PINMODE} },
+#endif
+#ifdef W_ENABLE_PORT
+    { .id = Output_StepperEnableW,  .port = W_ENABLE_PORT,          .pin = W_ENABLE_PIN,            .group = PinGroup_StepperEnable, .mode = {STEPPERS_ENABLE_PINMODE} },
 #endif
 #ifdef X2_ENABLE_PIN
     { .id = Output_StepperEnableX,  .port = X2_ENABLE_PORT,         .pin = X2_ENABLE_PIN,           .group = PinGroup_StepperEnable },
@@ -364,6 +409,15 @@ static void stepperEnable (axes_signals_t enable, bool hold)
   #ifdef C_AXIS
     DIGITAL_OUT(C_ENABLE_PORT, C_ENABLE_BIT, enable.c);
   #endif
+  #ifdef U_ENABLE_PORT
+    DIGITAL_OUT(U_ENABLE_PORT, U_ENABLE_BIT, enable.u);
+  #endif
+  #ifdef V_ENABLE_PORT
+    DIGITAL_OUT(V_ENABLE_PORT, V_ENABLE_BIT, enable.u);
+  #endif
+  #ifdef W_ENABLE_PORT
+    DIGITAL_OUT(W_ENABLE_PORT, W_ENABLE_PIN, enable.w);
+  #endif
 #endif
 }
 
@@ -384,44 +438,53 @@ static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 }
 
 // Set stepper pulse output pins
-// NOTE: step_outbits are: bit0 -> X, bit1 -> Y, bit2 -> Z...
+// NOTE: step_out are: bit0 -> X, bit1 -> Y, bit2 -> Z...
 
 #ifdef SQUARING_ENABLED
 
-inline static __attribute__((always_inline)) void stepper_step_out (axes_signals_t step_outbits_1)
+inline static __attribute__((always_inline)) void stepper_step_out (axes_signals_t step_out1)
 {
-    axes_signals_t step_outbits_2;
-    step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
+    axes_signals_t step_out2;
+    step_out2.mask = (step_out1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
 
 #if STEP_OUTMODE == GPIO_BITBAND
-    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
+    step_out1.mask = (step_out1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
 
-    DIGITAL_OUT(X_STEP_PORT, X_STEP_BIT, step_outbits_1.x);
-    DIGITAL_OUT(Y_STEP_PORT, Y_STEP_BIT, step_outbits_1.y);
-    DIGITAL_OUT(Z_STEP_PORT, Z_STEP_BIT, step_outbits_1.z);
+    DIGITAL_OUT(X_STEP_PORT, X_STEP_BIT, step_out1.x);
+    DIGITAL_OUT(Y_STEP_PORT, Y_STEP_BIT, step_out1.y);
+    DIGITAL_OUT(Z_STEP_PORT, Z_STEP_BIT, step_out1.z);
   #ifdef A_AXIS
-    DIGITAL_OUT(A_STEP_PORT, A_STEP_BIT, step_outbits_1.a);
+    DIGITAL_OUT(A_STEP_PORT, A_STEP_BIT, step_out1.a);
   #endif
   #ifdef B_AXIS
-    DIGITAL_OUT(B_STEP_PORT, B_STEP_BIT, step_outbits_1.b);
+    DIGITAL_OUT(B_STEP_PORT, B_STEP_BIT, step_out1.b);
   #endif
   #ifdef C_AXIS
-    DIGITAL_OUT(C_STEP_PORT, C_STEP_BIT, step_outbits_1.c);
+    DIGITAL_OUT(C_STEP_PORT, C_STEP_BIT, step_out1.c);
+  #endif
+  #ifdef U_AXIS
+    DIGITAL_OUT(U_STEP_PORT, U_STEP_BIT, step_out1.u);
+  #endif
+  #ifdef V_AXIS
+    DIGITAL_OUT(V_STEP_PORT, V_STEP_BIT, step_out1.v);
+  #endif
+  #ifdef W_AXIS
+    DIGITAL_OUT(W_STEP_PORT, W_STEP_BIT, step_out1.w);
   #endif
 #elif STEP_OUTMODE == GPIO_MAP
-    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | step_outmap[step_outbits_1.value & motors_1.mask];
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | step_outmap[step_out1.value & motors_1.mask];
 #else
-    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | (((step_outbits_1.value & motors_1.mask) << STEP_OUTMODE) ^ settings.steppers.step_invert.value);
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | (((step_out1.value & motors_1.mask) << STEP_OUTMODE) ^ settings.steppers.step_invert.value);
 #endif
 
 #ifdef X2_STEP_PIN
-    DIGITAL_OUT(X2_STEP_PORT, X2_STEP_BIT, step_outbits_2.x);
+    DIGITAL_OUT(X2_STEP_PORT, X2_STEP_BIT, step_out2.x);
 #endif
 #ifdef Y2_STEP_PIN
-    DIGITAL_OUT(Y2_STEP_PORT, Y2_STEP_BIT, step_outbits_2.y);
+    DIGITAL_OUT(Y2_STEP_PORT, Y2_STEP_BIT, step_out2.y);
 #endif
 #ifdef Z2_STEP_PIN
-    DIGITAL_OUT(Z2_STEP_PORT, Z2_STEP_BIT, step_outbits_2.z);
+    DIGITAL_OUT(Z2_STEP_PORT, Z2_STEP_BIT, step_out2.z);
 #endif
 }
 
@@ -434,60 +497,69 @@ static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
 
 #else
 
-inline static __attribute__((always_inline)) void stepper_step_out (axes_signals_t step_outbits)
+inline static __attribute__((always_inline)) void stepper_step_out (axes_signals_t step_out)
 {
 #if STEP_OUTMODE == GPIO_BITBAND
-    step_outbits.value ^= settings.steppers.step_invert.value;
-    DIGITAL_OUT(X_STEP_PORT, X_STEP_BIT, step_outbits.x);
+    step_out.bits ^= settings.steppers.step_invert.value;
+    DIGITAL_OUT(X_STEP_PORT, X_STEP_BIT, step_out.x);
   #ifdef X2_STEP_PIN
-    DIGITAL_OUT(X2_STEP_PORT, X2_STEP_BIT, step_outbits.x);
+    DIGITAL_OUT(X2_STEP_PORT, X2_STEP_BIT, step_out.x);
   #endif
-    DIGITAL_OUT(Y_STEP_PORT, Y_STEP_BIT, step_outbits.y);
+    DIGITAL_OUT(Y_STEP_PORT, Y_STEP_BIT, step_out.y);
   #ifdef Y2_STEP_PIN
-    DIGITAL_OUT(Y2_STEP_PORT, Y2_STEP_BIT, step_outbits.y);
+    DIGITAL_OUT(Y2_STEP_PORT, Y2_STEP_BIT, step_out.y);
   #endif
-    DIGITAL_OUT(Z_STEP_PORT, Z_STEP_BIT, step_outbits.z);
+    DIGITAL_OUT(Z_STEP_PORT, Z_STEP_BIT, step_out.z);
   #ifdef Z2_STEP_PIN
-    DIGITAL_OUT(Z2_STEP_PORT, Z2_STEP_BIT, step_outbits.z);
+    DIGITAL_OUT(Z2_STEP_PORT, Z2_STEP_BIT, step_out.z);
   #endif
   #ifdef A_AXIS
-    DIGITAL_OUT(A_STEP_PORT, A_STEP_BIT, step_outbits.a);
+    DIGITAL_OUT(A_STEP_PORT, A_STEP_BIT, step_out.a);
   #endif
   #ifdef B_AXIS
-    DIGITAL_OUT(B_STEP_PORT, B_STEP_BIT, step_outbits.b);
+    DIGITAL_OUT(B_STEP_PORT, B_STEP_BIT, step_out.b);
   #endif
   #ifdef C_AXIS
-    DIGITAL_OUT(C_STEP_PORT, C_STEP_BIT, step_outbits_1.c);
+    DIGITAL_OUT(C_STEP_PORT, C_STEP_BIT, step_out.c);
+  #endif
+  #ifdef U_AXIS
+    DIGITAL_OUT(U_STEP_PORT, U_STEP_BIT, step_out.u);
+  #endif
+  #ifdef V_AXIS
+    DIGITAL_OUT(V_STEP_PORT, V_STEP_BIT, step_out.v);
+  #endif
+  #ifdef W_AXIS
+    DIGITAL_OUT(W_STEP_PORT, W_STEP_BIT, step_out.w);
   #endif
 #elif STEP_OUTMODE == GPIO_MAP
-    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | step_outmap[step_outbits.value];
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | step_outmap[step_out.bits];
  #if N_GANGED
   #ifdef X2_STEP_PIN
-    BITBAND_PERI(X2_STEP_PORT->ODR, X2_STEP_BIT) = step_outbits.x ^ settings.steppers.step_invert.x;
+    BITBAND_PERI(X2_STEP_PORT->ODR, X2_STEP_BIT) = step_out.x ^ settings.steppers.step_invert.x;
   #endif
   #ifdef Y2_STEP_PIN
-    BITBAND_PERI(Y2_STEP_PORT->ODR, Y2_STEP_BIT) = step_outbits.y ^ settings.steppers.step_invert.y;
+    BITBAND_PERI(Y2_STEP_PORT->ODR, Y2_STEP_BIT) = step_out.y ^ settings.steppers.step_invert.y;
   #endif
   #ifdef Z2_STEP_PIN
-    BITBAND_PERI(Z2_STEP_PORT->ODR, Z2_STEP_BIT) = step_outbits.z ^ settings.steppers.step_invert.z;
+    BITBAND_PERI(Z2_STEP_PORT->ODR, Z2_STEP_BIT) = step_out.z ^ settings.steppers.step_invert.z;
   #endif
  #endif
 #else
  #if N_GANGED
-    step_outbits.mask ^= settings.steppers.step_invert.mask;
-    STEP_PORT->ODR = (STEP_PORT->ODR & ~STEP_MASK) | (step_outbits.mask << STEP_OUTMODE);
+    step_out.mask ^= settings.steppers.step_invert.mask;
+    STEP_PORT->ODR = (STEP_PORT->ODR & ~STEP_MASK) | (step_out.mask << STEP_OUTMODE);
   #ifdef X2_STEP_PIN
-    BITBAND_PERI(X2_STEP_PORT->ODR, X2_STEP_BIT) = step_outbits.x;
+    BITBAND_PERI(X2_STEP_PORT->ODR, X2_STEP_BIT) = step_out.x;
   #endif
   #ifdef Y2_STEP_PIN
-    BITBAND_PERI(Y2_STEP_PORT->ODR, Y2_STEP_BIT) = step_outbits.y;
+    BITBAND_PERI(Y2_STEP_PORT->ODR, Y2_STEP_BIT) = step_out.y;
   #endif
   #ifdef Z2_STEP_PIN
-    BITBAND_PERI(Z2_STEP_PORT->ODR, Z2_STEP_BIT) = step_outbits.z;
-    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | ((step_outbits.value << STEP_OUTMODE));
+    BITBAND_PERI(Z2_STEP_PORT->ODR, Z2_STEP_BIT) = step_out.z;
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | ((step_out.bits << STEP_OUTMODE));
   #endif
  #else
-    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | ((step_outbits.value << STEP_OUTMODE) ^ settings.steppers.step_invert.value);
+    STEP_PORT->PIN = (STEP_PORT->PIN & ~STEP_MASK) | ((step_out.bits << STEP_OUTMODE) ^ settings.steppers.step_invert.value);
  #endif
 #endif
 }
@@ -531,57 +603,66 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 
 // Set stepper direction output pins
 // NOTE: see note for stepper_step_out()
-inline static __attribute__((always_inline)) void stepper_dir_out (axes_signals_t dir_outbits)
+inline static __attribute__((always_inline)) void stepper_dir_out (axes_signals_t dir_out)
 {
 #if DIRECTION_OUTMODE == GPIO_BITBAND
-    dir_outbits.value ^= settings.steppers.dir_invert.value;
-    DIGITAL_OUT(X_DIRECTION_PORT, X_DIRECTION_BIT, dir_outbits.x);
-    DIGITAL_OUT(Y_DIRECTION_PORT, Y_DIRECTION_BIT, dir_outbits.y);
-    DIGITAL_OUT(Z_DIRECTION_PORT, Z_DIRECTION_BIT, dir_outbits.z);
+    dir_out.value ^= settings.steppers.dir_invert.value;
+    DIGITAL_OUT(X_DIRECTION_PORT, X_DIRECTION_BIT, dir_out.x);
+    DIGITAL_OUT(Y_DIRECTION_PORT, Y_DIRECTION_BIT, dir_out.y);
+    DIGITAL_OUT(Z_DIRECTION_PORT, Z_DIRECTION_BIT, dir_out.z);
  #ifdef GANGING_ENABLED
-    dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
+    dir_out.mask ^= settings.steppers.ganged_dir_invert.mask;
   #ifdef X2_DIRECTION_PIN
-    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_BIT, dir_outbits.x);
+    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_BIT, dir_out.x);
   #endif
   #ifdef Y2_DIRECTION_PIN
-    DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_BIT, dir_outbits.y);
+    DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_BIT, dir_out.y);
   #endif
   #ifdef Z2_DIRECTION_PIN
-    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_BIT, dir_outbits.z);
+    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_BIT, dir_out.z);
   #endif
  #endif
  #ifdef A_AXIS
-    DIGITAL_OUT(A_DIRECTION_PORT, A_DIRECTION_BIT, dir_outbits.a);
+    DIGITAL_OUT(A_DIRECTION_PORT, A_DIRECTION_BIT, dir_out.a);
  #endif
  #ifdef B_AXIS
-    DIGITAL_OUT(B_DIRECTION_PORT, B_DIRECTION_BIT, dir_outbits.b);
+    DIGITAL_OUT(B_DIRECTION_PORT, B_DIRECTION_BIT, dir_out.b);
  #endif
  #ifdef C_AXIS
-    DIGITAL_OUT(C_DIRECTION_PORT, C_DIRECTION_BIT, dir_outbits.c);
+    DIGITAL_OUT(C_DIRECTION_PORT, C_DIRECTION_BIT, dir_out.c);
+ #endif
+ #ifdef U_AXIS
+    DIGITAL_OUT(U_DIRECTION_PORT, U_DIRECTION_BIT, dir_out.u);
+ #endif
+ #ifdef V_AXIS
+    DIGITAL_OUT(V_DIRECTION_PORT, V_DIRECTION_BIT, dir_out.v);
+ #endif
+ #ifdef W_AXIS
+    DIGITAL_OUT(W_DIRECTION_PORT, W_DIRECTION_BIT, dir_out.w);
  #endif
 #elif DIRECTION_OUTMODE == GPIO_MAP
-    DIRECTION_PORT->PIN = (DIRECTION_PORT->PIN & ~DIRECTION_MASK) | dir_outmap[dir_outbits.value];
+    DIRECTION_PORT->PIN = (DIRECTION_PORT->PIN & ~DIRECTION_MASK) | dir_outmap[dir_out.value];
   #ifdef X2_DIRECTION_PIN
-    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_BIT, (dir_outbits.x ^ settings.steppers.dir_invert.x) ^ settings.steppers.ganged_dir_invert.mask.x;
+    DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_BIT, (dir_out.x ^ settings.steppers.dir_invert.x) ^ settings.steppers.ganged_dir_invert.mask.x;
   #endif
   #ifdef Y2_DIRECTION_PIN
-    DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_BIT, (dir_outbits.y ^ settings.steppers.dir_invert.y) ^ settings.steppers.ganged_dir_invert.mask.y);
+    DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_BIT, (dir_out.y ^ settings.steppers.dir_invert.y) ^ settings.steppers.ganged_dir_invert.mask.y);
   #endif
   #ifdef Z2_DIRECTION_PIN
-    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_BIT, (dir_outbits.z ^ settings.steppers.dir_invert.z) ^ settings.steppers.ganged_dir_invert.mask.z;
+    DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_BIT, (dir_out.z ^ settings.steppers.dir_invert.z) ^ settings.steppers.ganged_dir_invert.mask.z;
   #endif
 #else
-    DIRECTION_PORT->PIN = (DIRECTION_PORT->PIN & ~DIRECTION_MASK) | ((dir_outbits.value << DIRECTION_OUTMODE) ^ settings.steppers.dir_invert.value);
+    DIRECTION_PORT->PIN = (DIRECTION_PORT->PIN & ~DIRECTION_MASK) | ((dir_out.value << DIRECTION_OUTMODE) ^ settings.steppers.dir_invert.value);
  #ifdef GANGING_ENABLED
-   dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
+   dir_out.mask ^= settings.steppers.ganged_dir_invert.mask;
   #ifdef X2_DIRECTION_PIN
-   DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_BIT, dir_outbits.x);
+   DIGITAL_OUT(X2_DIRECTION_PORT, X2_DIRECTION_BIT, dir_out.x);
   #endif
   #ifdef Y2_DIRECTION_PIN
-   DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_BIT, dir_outbits.y);
+   DIGITAL_OUT(Y2_DIRECTION_PORT, Y2_DIRECTION_BIT, dir_out.y);
   #endif
   #ifdef Z2_DIRECTION_PIN
-   DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_BIT, dir_outbits.z);
+   DIGITAL_OUT(Z2_DIRECTION_PORT, Z2_DIRECTION_BIT, dir_out.z);
   #endif
  #endif
 #endif
@@ -688,16 +769,40 @@ inline static limit_signals_t limitsGetState()
   #ifdef B_LIMIT_PIN
     signals.min.b = DIGITAL_IN(B_LIMIT_PORT, B_LIMIT_BIT);
   #endif
+  #ifdef C_LIMIT_PIN
+    signals.min.c = DIGITAL_IN(C_LIMIT_PORT, C_LIMIT_BIT);
+  #endif
+  #ifdef U_LIMIT_PIN
+    signals.min.u = DIGITAL_IN(U_LIMIT_PORT, U_LIMIT_BIT);
+  #endif
+  #ifdef V_LIMIT_PIN
+    signals.min.v = DIGITAL_IN(V_LIMIT_PORT, V_LIMIT_BIT);
+  #endif
+  #ifdef W_LIMIT_PIN
+    signals.min.w = DIGITAL_IN(W_LIMIT_PORT, W_LIMIT_BIT);
+  #endif
 #else
     uint32_t bits = LIMIT_PORT->PIN;
-    signals.min.x = (bits & X_LIMIT_BIT) != 0;
-    signals.min.y = (bits & Y_LIMIT_BIT) != 0;
-    signals.min.z = (bits & Z_LIMIT_BIT) != 0;
+    signals.min.x = !!(bits & X_LIMIT_BIT);
+    signals.min.y = !!(bits & Y_LIMIT_BIT);
+    signals.min.z = !!(bits & Z_LIMIT_BIT);
   #ifdef A_LIMIT_PIN
-    signals.min.a = (bits & A_LIMIT_BIT) != 0;
+    signals.min.a = !!(bits & A_LIMIT_BIT);
   #endif
   #ifdef B_LIMIT_PIN
-    signals.min.b = (bits & B_LIMIT_BIT) != 0;
+    signals.min.b = !!(bits & B_LIMIT_BIT);
+  #endif
+  #ifdef C_LIMIT_PIN
+    signals.min.c = !!(bits & C_LIMIT_BIT);
+  #endif
+  #ifdef U_LIMIT_PIN
+    signals.min.u = !!(bits & U_LIMIT_BIT);
+  #endif
+  #ifdef V_LIMIT_PIN
+    signals.min.v = !!(bits & V_LIMIT_BIT);
+  #endif
+  #ifdef W_LIMIT_PIN
+    signals.min.w = !!(bits & W_LIMIT_BIT);
   #endif
 #endif
 
@@ -719,6 +824,24 @@ inline static limit_signals_t limitsGetState()
 #endif
 #ifdef Z_LIMIT_PIN_MAX
     signals.max.z = DIGITAL_IN(Z_LIMIT_PORT_MAX, Z_LIMIT_BIT_MAX);
+#endif
+#ifdef A_LIMIT_PIN_MAX
+    signals.max.a = DIGITAL_IN(A_LIMIT_PORT_MAX, A_LIMIT_BIT_MAX);
+#endif
+#ifdef B_LIMIT_PIN_MAX
+    signals.max.b = DIGITAL_IN(B_LIMIT_PORT_MAX, B_LIMIT_BIT_MAX);
+#endif
+#ifdef C_LIMIT_PIN_MAX
+    signals.max.c = DIGITAL_IN(C_LIMIT_PORT_MAX, C_LIMIT_BIT_MAX);
+#endif
+#ifdef U_LIMIT_PIN_MAX
+    signals.max.u = DIGITAL_IN(U_LIMIT_PORT_MAX, U_LIMIT_BIT_MAX);
+#endif
+#ifdef V_LIMIT_PIN_MAX
+    signals.max.v = DIGITAL_IN(V_LIMIT_PORT_MAX, V_LIMIT_BIT_MAX);
+#endif
+#ifdef W_LIMIT_PIN_MAX
+    signals.max.w = DIGITAL_IN(W_LIMIT_PORT_MAX, W_LIMIT_BIT_MAX);
 #endif
 
     if (settings.limits.invert.mask) {
@@ -1299,7 +1422,7 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
                         pullup = !settings->limits.disable_pullup.z;
                         input->mode.irq_mode = limit_fei.z ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
-
+#ifdef A_AXIS
                     case Input_LimitA:
                     case Input_LimitA_Max:
                         if(settings->limits.invert.a)
@@ -1307,7 +1430,8 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
                         pullup = !settings->limits.disable_pullup.a;
                         input->mode.irq_mode = limit_fei.a ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
-
+#endif
+#ifdef B_AXIS
                     case Input_LimitB:
                     case Input_LimitB_Max:
                         if(settings->limits.invert.b)
@@ -1315,7 +1439,8 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
                         pullup = !settings->limits.disable_pullup.b;
                         input->mode.irq_mode = limit_fei.b ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
-
+#endif
+#ifdef C_AXIS
                     case Input_LimitC:
                     case Input_LimitC_Max:
                         if(settings->limits.invert.c)
@@ -1323,7 +1448,28 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
                         pullup = !settings->limits.disable_pullup.c;
                         input->mode.irq_mode = limit_fei.c ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                         break;
-
+#endif
+#ifdef U_AXIS
+                    case Input_LimitU:
+                    case Input_LimitU_Max:
+                        input->mode.pull_mode = settings->limits.disable_pullup.u ? PullMode_None : PullMode_Up;
+                        input->mode.irq_mode = limit_fei.u ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                        break;
+#endif
+#ifdef V_AXIS
+                    case Input_LimitV:
+                    case Input_LimitV_Max:
+                        input->mode.pull_mode = settings->limits.disable_pullup.v ? PullMode_None : PullMode_Up;
+                        input->mode.irq_mode = limit_fei.v ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                        break;
+#endif
+#ifdef W_AXIS
+                    case Input_LimitW:
+                    case Input_LimitW_Max:
+                        input->mode.pull_mode = settings->limits.disable_pullup.w ? PullMode_None : PullMode_Up;
+                        input->mode.irq_mode = limit_fei.w ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                        break;
+#endif
                     default:
                         pullup = false;
                         input->mode.irq_mode = IRQ_Mode_None;
@@ -1557,7 +1703,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "251015";
+    hal.driver_version = "260122";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1615,7 +1761,8 @@ bool driver_init (void) {
 #endif
 
 #if EEPROM_ENABLE
-    i2c_eeprom_init();
+    if(!i2c_eeprom_init())
+        task_run_on_startup(task_raise_alarm, (void *)Alarm_NVS_Failed);
 #elif FLASH_ENABLE
     hal.nvs.type = NVS_Flash;
     hal.nvs.memcpy_from_flash = memcpy_from_flash;
