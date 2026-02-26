@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2017-2025 Terje Io
+  Copyright (c) 2017-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -278,7 +278,7 @@ static bool usbSuspendInput (bool suspend)
     return stream_rx_suspend(&rxbuf, suspend);
 }
 
-static bool usbEnqueueRtCommand (int32_t c)
+static bool usbEnqueueRtCommand (uint8_t c)
 {
     return enqueue_realtime_command(c);
 }
