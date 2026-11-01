@@ -90,6 +90,8 @@
   #include "boards/btt_skr_e3_turbo_map.h"
 #elif defined(BOARD_MKS_SBASE_13)
   #include "boards/mks_sbase_map.h"
+#elif defined(BOARD_MKS_SGEN_L)
+  #include "boards/mks_sgen_l_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "boards/my_machine_map.h"
 #else

@@ -34,7 +34,6 @@
 #define TRINAMIC_ENABLE 2209
 #undef TRINAMIC_UART_ENABLE
 #define TRINAMIC_UART_ENABLE 1
-#define HAS_BOARD_INIT
 
 // Define step pulse output pins.
 #define X_STEP_PN               1

@@ -1728,7 +1728,7 @@ bool driver_init (void) {
 #endif
 
     hal.info = "LCP1769";
-    hal.driver_version = "261007";
+    hal.driver_version = "261029";
     hal.driver_setup = driver_setup;
     hal.driver_url = GRBL_URL "/LCP176x";
 #ifdef BOARD_NAME
@@ -1807,8 +1807,7 @@ bool driver_init (void) {
     hal.coolant_cap.bits = COOLANT_ENABLE;
     hal.driver_cap.software_debounce = On;
     hal.driver_cap.step_pulse_delay = On;
-    hal.driver_cap.control_pull_up = On;
-    hal.driver_cap.limits_pull_up = On;
+    hal.driver_cap.pullup_enabled = PULLUPS_ENABLE;
 #if SDCARD_ENABLE
     hal.driver_cap.sd_card = On;
 #endif
@@ -1861,8 +1860,15 @@ bool driver_init (void) {
     aux_ctrl_claim_ports(aux_claim_explicit, NULL);
     aux_ctrl_claim_out_ports(NULL, NULL);
 
+
 #ifdef HAS_BOARD_INIT
     board_init();
+#elif TRINAMIC_SPI_ENABLE
+    extern void tmc_spi_init (void);
+    tmc_spi_init();
+#elif TRINAMIC_UART_ENABLE
+    extern void tmc_uart_init (void);
+    tmc_uart_init();
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
@@ -1975,6 +1981,8 @@ void STEPPULSE_IRQHandler (void)
     }
 }
 
+#ifdef LIMITS_POLL_PORT // Poll limit pins when hard limits enabled
+
 void limit_pin_debounce (void *pin)
 {
     input_signal_t *input = (input_signal_t *)pin;
@@ -1988,6 +1996,8 @@ void limit_pin_debounce (void *pin)
     limits_debounce = false;
 }
 
+#endif
+
 void core_pin_debounce (void *pin)
 {
     input_signal_t *input = (input_signal_t *)pin;
@@ -1998,7 +2008,9 @@ void core_pin_debounce (void *pin)
             limit_signals_t state = limitsGetState();
             if(limit_signals_merge(state).value) // TODO: add check for limit switches having same state as when limit_isr were invoked?
                 hal.limits.interrupt_callback(state);
+#ifdef LIMITS_POLL_PORT // Poll limit pins when hard limits enabled
             limits_debounce = false;
+#endif
         }
     }
 
